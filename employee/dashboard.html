@@ -1,0 +1,1933 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Dashboard - GeoFaceAttend</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- Add face-api.js for REAL AI face detection -->
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+
+    <!-- Enhanced Visual Feedback CSS -->
+    <style>
+        /* Enhanced face guide with eye indicators */
+        .face-guide {
+            position: relative;
+            width: 200px;
+            height: 200px;
+            border: 2px solid var(--primary);
+            border-radius: 50%;
+            transition: all 0.3s ease;
+            margin: 0 auto;
+        }
+
+        .face-guide::before,
+        .face-guide::after {
+            content: '';
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: 2px solid var(--primary);
+            top: 60px;
+            transition: all 0.3s ease;
+            background: transparent;
+        }
+
+        .face-guide::before {
+            left: 40px;
+        }
+
+        .face-guide::after {
+            right: 40px;
+        }
+
+        /* When face detected */
+        .face-guide.detected {
+            border-color: #10b981;
+            animation: pulse 1.5s infinite;
+        }
+
+        .face-guide.detected::before,
+        .face-guide.detected::after {
+            border-color: #10b981;
+            background: rgba(16, 185, 129, 0.2);
+        }
+
+        /* When eyes detected as open */
+        .face-guide.eyes-open::before,
+        .face-guide.eyes-open::after {
+            background: #10b981;
+            box-shadow: 0 0 15px #10b981;
+            border-color: #10b981;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+            }
+
+            70% {
+                box-shadow: 0 0 0 15px rgba(16, 185, 129, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+            }
+        }
+
+        /* Confidence meter */
+        .confidence-meter {
+            width: 100%;
+            height: 4px;
+            background: var(--border-color);
+            border-radius: 2px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+
+        .confidence-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #10b981, #4361ee);
+            transition: width 0.3s ease;
+        }
+
+        /* Camera container enhancements */
+        .camera-container {
+            position: relative;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 15px;
+        }
+
+        .camera-container::after {
+            content: '👁️ Look at camera with eyes open';
+            position: absolute;
+            bottom: 10px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            color: white;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 8px;
+            font-size: 13px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+
+        .camera-container:hover::after {
+            opacity: 1;
+        }
+
+        /* AI Status Indicator */
+        .ai-status-indicator {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: #10b981;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 30px;
+            font-size: 13px;
+            font-weight: 600;
+            z-index: 9999;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            animation: slideInLeft 0.3s ease;
+        }
+
+        .ai-status-indicator i {
+            font-size: 16px;
+        }
+
+        @keyframes slideInLeft {
+            from {
+                transform: translateX(-100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* Face status messages */
+        .face-status-message {
+            text-align: center;
+            font-size: 14px;
+            margin: 10px 0;
+            padding: 8px;
+            border-radius: 8px;
+        }
+
+        .face-status-message.success {
+            background: rgba(16, 185, 129, 0.15);
+            color: #10b981;
+        }
+
+        .face-status-message.warning {
+            background: rgba(245, 158, 11, 0.15);
+            color: #f59e0b;
+        }
+
+        .face-status-message.error {
+            background: rgba(239, 68, 68, 0.15);
+            color: #ef4444;
+        }
+
+        /* Notification badge */
+        .notification-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #ef4444;
+            color: white;
+            font-size: 10px;
+            padding: 2px 5px;
+            border-radius: 10px;
+            min-width: 18px;
+            text-align: center;
+        }
+
+        /* Chart card adjustments */
+        .chart-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 20px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 8px var(--shadow-color);
+            height: 300px;
+            position: relative;
+        }
+
+        .chart-card h3 {
+            margin-bottom: 15px;
+            font-size: 16px;
+            color: var(--text-primary);
+        }
+
+        canvas {
+            max-height: 220px;
+            width: 100% !important;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="dashboard">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-fingerprint"></i>
+                    <span>GeoFaceAttend</span>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="#dashboard" class="active" onclick="showSection('dashboard')">
+                    <i class="fas fa-home"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#attendance" onclick="showSection('attendance')">
+                    <i class="fas fa-calendar-check"></i>
+                    <span>Attendance</span>
+                </a>
+                <a href="#leave" onclick="showSection('leave')">
+                    <i class="fas fa-umbrella-beach"></i>
+                    <span>Leave</span>
+                </a>
+                <a href="#reports" onclick="showSection('reports')">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>Reports</span>
+                </a>
+                <a href="#inbox" onclick="showSection('inbox')">
+                    <i class="fas fa-envelope"></i>
+                    <span>Inbox</span>
+                    <span class="notification-badge" id="emailBadge" style="display: none;">0</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-profile" onclick="toggleProfileMenu()">
+                    <img src="https://ui-avatars.com/api/?name=John+Doe&background=4361ee&color=fff" alt="Employee"
+                        id="employeeAvatar">
+                    <div class="user-info">
+                        <p class="user-name" id="employeeName">John Doe</p>
+                        <p class="user-role" id="employeeDept">Engineering</p>
+                    </div>
+                </div>
+                <button onclick="logout()" class="logout-sidebar-btn">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Top Bar -->
+            <header class="top-bar">
+                <div class="page-title">
+                    <h1 id="pageTitle">Dashboard</h1>
+                    <p id="currentDateTime"></p>
+                </div>
+                <div class="top-actions">
+                    <button onclick="openInbox()" class="icon-btn" title="Inbox">
+                        <i class="fas fa-envelope"></i>
+                        <span class="notification-badge" id="topEmailBadge" style="display: none;">0</span>
+                    </button>
+                    <button onclick="toggleTheme()" class="icon-btn theme-toggle">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                    <button onclick="logout()" class="icon-btn">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Profile Dropdown Menu -->
+            <div id="profileMenu" class="profile-menu">
+                <div class="profile-header">
+                    <img src="https://ui-avatars.com/api/?name=John+Doe&background=4361ee&color=fff" alt="Employee"
+                        id="profileAvatar">
+                    <h3 id="profileName">John Doe</h3>
+                    <p id="profileEmail">john.doe@company.com</p>
+                </div>
+                <div class="profile-body">
+                    <div class="profile-item">
+                        <i class="fas fa-id-card"></i>
+                        <div>
+                            <span class="item-label">Employee ID</span>
+                            <span class="item-value" id="profileEmpId">EMP001</span>
+                        </div>
+                    </div>
+                    <div class="profile-item">
+                        <i class="fas fa-building"></i>
+                        <div>
+                            <span class="item-label">Department</span>
+                            <span class="item-value" id="profileDept">Engineering</span>
+                        </div>
+                    </div>
+                    <div class="profile-item">
+                        <i class="fas fa-calendar"></i>
+                        <div>
+                            <span class="item-label">Joined</span>
+                            <span class="item-value" id="profileJoined">Jan 15, 2024</span>
+                        </div>
+                    </div>
+                    <div class="profile-item">
+                        <i class="fas fa-clock"></i>
+                        <div>
+                            <span class="item-label">Today's Status</span>
+                            <span class="item-value" id="profileStatus">Not Checked In</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard Section -->
+            <div id="dashboard-section" class="section active">
+                <!-- Welcome Card -->
+                <div class="welcome-card">
+                    <div class="welcome-content">
+                        <h2 id="welcomeMessage">Good Morning, John! 👋</h2>
+                        <p>Ready to conquer the day?</p>
+                        <div class="attendance-status" id="todayStatus">
+                            <span class="status-badge pending" id="statusBadge">Not Checked In</span>
+                        </div>
+                    </div>
+                    <div class="welcome-stats">
+                        <div class="stat-bubble">
+                            <span class="stat-value" id="monthlyAttendance">95%</span>
+                            <span class="stat-label">Monthly</span>
+                        </div>
+                        <div class="stat-bubble">
+                            <span class="stat-value" id="onTimeRate">98%</span>
+                            <span class="stat-label">On Time</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stats Grid -->
+                <div class="stats-grid employee">
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-calendar-check"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3>Present Days</h3>
+                            <p class="stat-value" id="presentDays">18</p>
+                            <span class="stat-label">This Month</span>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3>Late Arrivals</h3>
+                            <p class="stat-value" id="lateDays">2</p>
+                            <span class="stat-label">This Month</span>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-umbrella-beach"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3>Leave Taken</h3>
+                            <p class="stat-value" id="leaveDays">1</p>
+                            <span class="stat-label">Remaining: 11</span>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-star"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3>Performance</h3>
+                            <p class="stat-value" id="performanceScore">A+</p>
+                            <span class="stat-label">Excellent</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Row -->
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <h3>Weekly Attendance</h3>
+                        <canvas id="weeklyChart"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Monthly Overview</h3>
+                        <canvas id="monthlyChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Recent Activity -->
+                <div class="recent-activity">
+                    <h3><i class="fas fa-history"></i> Recent Activity</h3>
+                    <div class="activity-list" id="activityList">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Attendance Section -->
+            <div id="attendance-section" class="section">
+                <!-- Check-in Status -->
+                <div class="status-card" id="todayStatusCard">
+                    <div class="status-icon" id="statusIcon">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div class="status-content">
+                        <h3 id="statusTitle">Not Checked In</h3>
+                        <p id="statusTime">Please mark your attendance</p>
+                    </div>
+                </div>
+
+                <!-- Check-In Process -->
+                <div id="checkInProcess">
+                    <!-- Step 1: Location -->
+                    <div class="step-card" id="locationStep">
+                        <div class="step-header">
+                            <span class="step-number">1</span>
+                            <h3>Location Verification (Within 1km)</h3>
+                        </div>
+                        <div class="step-content">
+                            <div class="location-info">
+                                <i class="fas fa-map-marked-alt"></i>
+                                <p>Main Office • 123 Business Ave</p>
+                            </div>
+                            <button onclick="verifyLocation()" class="btn-primary btn-block" id="verifyLocationBtn">
+                                <i class="fas fa-location-dot"></i> Verify Location
+                            </button>
+                            <div class="verification-status" id="locationStatus"></div>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Face -->
+                    <div class="step-card" id="faceStep" style="display: none;">
+                        <div class="step-header">
+                            <span class="step-number">2</span>
+                            <h3>Face Verification (AI Eye Detection)</h3>
+                        </div>
+                        <div class="step-content">
+                            <div class="camera-container">
+                                <video id="video" autoplay></video>
+                                <canvas id="canvas" style="display: none;"></canvas>
+                                <div class="camera-overlay">
+                                    <div class="face-guide" id="faceGuide"></div>
+                                </div>
+                            </div>
+                            <div class="confidence-meter" id="confidenceMeter" style="display: none;">
+                                <div class="confidence-fill" id="confidenceFill" style="width: 0%;"></div>
+                            </div>
+                            <div class="face-status-message" id="faceStatus"></div>
+                            <button onclick="captureFace()" class="btn-primary btn-block" id="captureBtn">
+                                <i class="fas fa-camera"></i> Verify Face
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Confirm -->
+                    <div class="step-card" id="confirmStep" style="display: none;">
+                        <div class="step-header">
+                            <span class="step-number">3</span>
+                            <h3>Confirmation</h3>
+                        </div>
+                        <div class="step-content">
+                            <div class="confirmation-box">
+                                <i class="fas fa-check-circle success-icon"></i>
+                                <h4>Verification Complete!</h4>
+                                <div class="verification-details">
+                                    <p><strong>Date:</strong> <span id="confirmDate"></span></p>
+                                    <p><strong>Time:</strong> <span id="confirmTime"></span></p>
+                                    <p><strong>Location:</strong> Main Office (Verified within 1km)</p>
+                                    <p><strong>Face:</strong> Verified with AI eye detection</p>
+                                </div>
+                                <button onclick="confirmCheckIn()" class="btn-success btn-block">
+                                    <i class="fas fa-check"></i> Confirm Check-In
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Check-Out Process -->
+                <div id="checkOutProcess" style="display: none;">
+                    <div class="step-card">
+                        <div class="step-header">
+                            <span class="step-number"><i class="fas fa-sign-out-alt"></i></span>
+                            <h3>Check-Out</h3>
+                        </div>
+                        <div class="step-content">
+                            <div class="location-info">
+                                <i class="fas fa-map-marked-alt"></i>
+                                <p>Main Office • 123 Business Ave</p>
+                            </div>
+                            <div class="check-in-info">
+                                <p><strong>Checked In:</strong> <span id="displayCheckInTime"></span></p>
+                                <p><strong>Hours Worked:</strong> <span id="displayHoursWorked">0h 0m</span></p>
+                            </div>
+                            <button onclick="showCheckOutVerification()" class="btn-primary btn-block"
+                                id="verifyCheckOutBtn">
+                                <i class="fas fa-location-dot"></i> Verify & Check-Out
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Stats -->
+                <div class="stats-grid" style="margin-top: 20px;">
+                    <div class="stat-card">
+                        <span class="stat-label">Attendance</span>
+                        <span class="stat-value">95%</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">Punctuality</span>
+                        <span class="stat-value">98%</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">This Week</span>
+                        <span class="stat-value">5/5</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">Hours Today</span>
+                        <span class="stat-value" id="todayHours">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Leave Section -->
+            <div id="leave-section" class="section">
+                <div class="section-header">
+                    <h2>Apply for Leave</h2>
+                </div>
+
+                <!-- Leave Balance -->
+                <div class="balance-card">
+                    <h3>Your Leave Balance</h3>
+                    <div class="balance-grid">
+                        <div class="balance-item">
+                            <span class="balance-label">Annual</span>
+                            <span class="balance-value" id="annualBalance">12</span>
+                        </div>
+                        <div class="balance-item">
+                            <span class="balance-label">Sick</span>
+                            <span class="balance-value" id="sickBalance">8</span>
+                        </div>
+                        <div class="balance-item">
+                            <span class="balance-label">Personal</span>
+                            <span class="balance-value" id="personalBalance">5</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Leave Form -->
+                <div class="form-card">
+                    <div class="form-group">
+                        <label>Leave Type</label>
+                        <select id="leaveType" class="form-control">
+                            <option value="">Select leave type</option>
+                            <option value="Annual">Annual Leave</option>
+                            <option value="Sick">Sick Leave</option>
+                            <option value="Personal">Personal Leave</option>
+                        </select>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Start Date</label>
+                            <input type="date" id="leaveStart" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>End Date</label>
+                            <input type="date" id="leaveEnd" class="form-control">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Reason</label>
+                        <textarea id="leaveReason" class="form-control" rows="3"
+                            placeholder="Tell us why you need leave..."></textarea>
+                    </div>
+
+                    <button onclick="applyLeave()" class="btn-primary btn-block">
+                        <i class="fas fa-paper-plane"></i> Apply for Leave
+                    </button>
+                </div>
+
+                <!-- Leave History -->
+                <div class="history-card">
+                    <h3>Leave History</h3>
+                    <div class="history-list" id="leaveHistory">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reports Section -->
+            <div id="reports-section" class="section">
+                <div class="section-header">
+                    <h2>My Attendance Reports</h2>
+                </div>
+
+                <div class="report-filters">
+                    <select id="reportMonth" class="form-control">
+                        <option value="1">January 2026</option>
+                        <option value="2">February 2026</option>
+                        <option value="3">March 2026</option>
+                    </select>
+                    <button onclick="generateReport()" class="btn-primary">
+                        <i class="fas fa-sync-alt"></i> Generate
+                    </button>
+                </div>
+
+                <div class="report-summary">
+                    <div class="summary-card">
+                        <span class="summary-label">Present</span>
+                        <span class="summary-value" id="reportPresent">18</span>
+                    </div>
+                    <div class="summary-card">
+                        <span class="summary-label">Late</span>
+                        <span class="summary-value" id="reportLate">2</span>
+                    </div>
+                    <div class="summary-card">
+                        <span class="summary-label">Leave</span>
+                        <span class="summary-value" id="reportLeave">1</span>
+                    </div>
+                    <div class="summary-card">
+                        <span class="summary-label">Absent</span>
+                        <span class="summary-value" id="reportAbsent">1</span>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <canvas id="reportChart"></canvas>
+                </div>
+
+                <div class="export-buttons">
+                    <button onclick="exportReport('pdf')" class="btn-outline">
+                        <i class="fas fa-file-pdf"></i> PDF
+                    </button>
+                    <button onclick="exportReport('csv')" class="btn-outline">
+                        <i class="fas fa-file-csv"></i> CSV
+                    </button>
+                </div>
+            </div>
+
+            <!-- Inbox Section -->
+            <div id="inbox-section" class="section">
+                <div class="section-header">
+                    <h2><i class="fas fa-envelope"></i> GeoFaceAttend Inbox</h2>
+                    <div class="header-actions">
+                        <button onclick="refreshInbox()" class="icon-btn">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="inbox-container" style="background: var(--card-bg); border-radius: 16px; padding: 20px;">
+                    <div class="inbox-stats"
+                        style="margin-bottom: 20px; padding: 10px; background: var(--bg-tertiary); border-radius: 8px;">
+                        <i class="fas fa-inbox"></i> Inbox: <span id="inboxEmailCount">0</span> unread
+                    </div>
+
+                    <div id="inboxList" style="display: flex; flex-direction: column; gap: 15px;">
+                        <!-- Emails will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Check-Out Verification Modal -->
+    <div id="checkOutModal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>Check-Out Verification</h3>
+                <button class="modal-close" onclick="closeCheckOutModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Step 1: Location -->
+                <div id="checkOutLocationStep">
+                    <div class="step-header" style="margin-bottom: 15px;">
+                        <span class="step-number">1</span>
+                        <h4>Location Verification (Within 1km)</h4>
+                    </div>
+                    <div class="location-info" style="margin-bottom: 15px;">
+                        <i class="fas fa-map-marked-alt"></i>
+                        <p>Main Office • 123 Business Ave</p>
+                    </div>
+                    <button onclick="verifyCheckOutLocation()" class="btn-primary btn-block" id="checkOutLocationBtn">
+                        <i class="fas fa-location-dot"></i> Verify Location
+                    </button>
+                    <div id="checkOutLocationStatus" class="verification-status" style="margin-top: 15px;"></div>
+                </div>
+
+                <!-- Step 2: Face -->
+                <div id="checkOutFaceStep" style="display: none;">
+                    <div class="step-header" style="margin-bottom: 15px;">
+                        <span class="step-number">2</span>
+                        <h4>Face Verification (AI Eye Detection)</h4>
+                    </div>
+                    <div class="camera-container" style="margin-bottom: 15px;">
+                        <video id="checkOutVideo" autoplay style="width: 100%; border-radius: 12px;"></video>
+                        <div class="camera-overlay">
+                            <div class="face-guide" id="checkOutFaceGuide" style="width: 150px; height: 150px;"></div>
+                        </div>
+                    </div>
+                    <div id="checkOutFaceStatus" class="verification-status" style="margin-top: 15px;"></div>
+                    <button onclick="startCheckOutFaceVerification()" class="btn-primary btn-block"
+                        id="startCheckOutFaceBtn">
+                        <i class="fas fa-camera"></i> Start Face Verification
+                    </button>
+                </div>
+
+                <!-- Step 3: Confirm -->
+                <div id="checkOutConfirmStep" style="display: none;">
+                    <div class="confirmation-box">
+                        <i class="fas fa-check-circle success-icon" style="font-size: 48px;"></i>
+                        <h4>Verification Complete!</h4>
+                        <div class="verification-details" style="margin: 15px 0;">
+                            <p><strong>Check-In:</strong> <span id="modalCheckInTime"></span></p>
+                            <p><strong>Check-Out:</strong> <span id="modalCheckOutTime"></span></p>
+                            <p><strong>Total Hours:</strong> <span id="modalTotalHours"></span></p>
+                            <p><strong>Location:</strong> Verified within 1km</p>
+                            <p><strong>Face:</strong> Verified with AI eye detection</p>
+                        </div>
+                        <button onclick="confirmCheckOut()" class="btn-success btn-block">
+                            <i class="fas fa-check"></i> Confirm Check-Out
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leave Face Verification Modal -->
+    <div id="leaveFaceModal" class="modal">
+        <div class="modal-content" style="max-width: 450px;">
+            <div class="modal-header">
+                <h3>Face Verification for Leave</h3>
+                <button class="modal-close" onclick="closeLeaveFaceModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="camera-container" style="margin-bottom: 20px;">
+                    <video id="leaveVideo" autoplay style="width: 100%; border-radius: 12px;"></video>
+                    <div class="camera-overlay">
+                        <div class="face-guide" id="leaveFaceGuide" style="width: 150px; height: 150px;"></div>
+                    </div>
+                </div>
+                <div id="leaveFaceStatus" class="verification-status" style="margin-bottom: 15px;"></div>
+                <button onclick="startLeaveFaceVerification()" class="btn-primary btn-block" id="startLeaveFaceBtn">
+                    <i class="fas fa-camera"></i> Start Verification
+                </button>
+                <button onclick="verifyLeaveFace()" class="btn-success btn-block" id="verifyLeaveFaceBtn"
+                    style="display: none;">
+                    <i class="fas fa-check"></i> Verify & Submit Leave
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="../assets/js/auth.js"></script>
+    <script src="../assets/js/face-verification.js"></script>
+    <script src="../assets/js/location-service.js"></script>
+    <script src="../assets/js/email-service.js"></script>
+    <script src="../assets/js/ai-assistant.js"></script>
+    <script src="../assets/js/notifications.js"></script>
+
+    <script>
+        // Load employee data
+        const user = JSON.parse(localStorage.getItem('currentUser'));
+        let stream = null;
+        let checkOutStream = null;
+        let leaveStream = null;
+        let checkInTime = null;
+        let checkInDate = null;
+        let checkOutLocationVerified = false;
+        let checkOutFaceVerified = false;
+        let leaveFaceVerified = false;
+
+        // Chart instances
+        let weeklyChart = null;
+        let monthlyChart = null;
+        let reportChart = null;
+
+        if (user) {
+            document.getElementById('employeeName').textContent = user.name || 'John Doe';
+            document.getElementById('employeeDept').textContent = user.department || 'Engineering';
+            document.getElementById('profileName').textContent = user.name || 'John Doe';
+            document.getElementById('profileEmail').textContent = user.email || 'john.doe@company.com';
+            document.getElementById('profileEmpId').textContent = user.empId || 'EMP001';
+            document.getElementById('profileDept').textContent = user.department || 'Engineering';
+
+            // Update welcome message based on time
+            const hour = new Date().getHours();
+            let greeting = 'Good Morning';
+            if (hour >= 12 && hour < 17) greeting = 'Good Afternoon';
+            if (hour >= 17) greeting = 'Good Evening';
+            document.getElementById('welcomeMessage').textContent = `${greeting}, ${user.name.split(' ')[0]}! 👋`;
+        }
+
+        // ============ CHART INITIALIZATION ============
+        function initCharts() {
+            // Weekly Attendance Chart
+            const weeklyCtx = document.getElementById('weeklyChart')?.getContext('2d');
+            if (weeklyCtx) {
+                // Destroy existing chart if it exists
+                if (weeklyChart) {
+                    weeklyChart.destroy();
+                }
+
+                weeklyChart = new Chart(weeklyCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+                        datasets: [{
+                            label: 'Attendance Status',
+                            data: [1, 1, 1, 1, 0.5],
+                            backgroundColor: [
+                                '#10b981', '#10b981', '#10b981', '#10b981', '#f59e0b'
+                            ],
+                            borderColor: [
+                                '#059669', '#059669', '#059669', '#059669', '#d97706'
+                            ],
+                            borderWidth: 1,
+                            borderRadius: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function (context) {
+                                        const value = context.raw;
+                                        if (value === 1) return 'Present';
+                                        if (value === 0.5) return 'Late';
+                                        return 'Absent';
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: 1,
+                                grid: {
+                                    color: 'rgba(0,0,0,0.05)'
+                                },
+                                ticks: {
+                                    stepSize: 0.5,
+                                    callback: function (value) {
+                                        if (value === 1) return 'Present';
+                                        if (value === 0.5) return 'Late';
+                                        if (value === 0) return 'Absent';
+                                        return '';
+                                    }
+                                }
+                            },
+                            x: {
+                                grid: {
+                                    display: false
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Monthly Overview Chart
+            const monthlyCtx = document.getElementById('monthlyChart')?.getContext('2d');
+            if (monthlyCtx) {
+                // Destroy existing chart if it exists
+                if (monthlyChart) {
+                    monthlyChart.destroy();
+                }
+
+                monthlyChart = new Chart(monthlyCtx, {
+                    type: 'line',
+                    data: {
+                        labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+                        datasets: [{
+                            label: 'Attendance %',
+                            data: [98, 95, 100, 92],
+                            borderColor: '#4361ee',
+                            backgroundColor: 'rgba(67, 97, 238, 0.1)',
+                            tension: 0.4,
+                            fill: true,
+                            pointBackgroundColor: '#4361ee',
+                            pointBorderColor: '#ffffff',
+                            pointBorderWidth: 2,
+                            pointRadius: 4,
+                            pointHoverRadius: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top',
+                                labels: {
+                                    color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary'),
+                                    font: {
+                                        size: 12
+                                    }
+                                }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function (context) {
+                                        return `Attendance: ${context.raw}%`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: 100,
+                                grid: {
+                                    color: 'rgba(0,0,0,0.05)'
+                                },
+                                ticks: {
+                                    callback: function (value) {
+                                        return value + '%';
+                                    },
+                                    stepSize: 20
+                                }
+                            },
+                            x: {
+                                grid: {
+                                    display: false
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        // Load recent activity
+        function loadRecentActivity() {
+            const activities = JSON.parse(localStorage.getItem('activities_' + user?.id) || '[]');
+            const list = document.getElementById('activityList');
+
+            if (list) {
+                if (activities.length === 0) {
+                    list.innerHTML = '<p class="text-muted">No recent activity</p>';
+                } else {
+                    list.innerHTML = activities.map(act => `
+                        <div class="activity-item">
+                            <i class="fas fa-${act.icon} activity-icon ${act.type}"></i>
+                            <div class="activity-details">
+                                <p><strong>${act.title}</strong> - ${act.description}</p>
+                                <span class="activity-time">${act.time}</span>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            }
+        }
+
+        // Load leave history
+        function loadLeaveHistory() {
+            const leaves = JSON.parse(localStorage.getItem('leaveRequests') || '[]');
+            const userLeaves = leaves.filter(l => l.employeeId === user?.id);
+            const history = document.getElementById('leaveHistory');
+
+            if (history) {
+                if (userLeaves.length === 0) {
+                    history.innerHTML = '<p class="text-muted">No leave history</p>';
+                } else {
+                    history.innerHTML = userLeaves.map(leave => `
+                        <div class="history-item">
+                            <div class="history-date">
+                                <span class="date-badge">${leave.startDate} to ${leave.endDate}</span>
+                                <span class="badge ${leave.status}">${leave.status}</span>
+                            </div>
+                            <p class="history-reason">${leave.type} - ${leave.reason.substring(0, 50)}${leave.reason.length > 50 ? '...' : ''}</p>
+                        </div>
+                    `).join('');
+                }
+            }
+        }
+
+        // Show sections
+        function showSection(section) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.sidebar-nav a').forEach(a => a.classList.remove('active'));
+
+            const sectionElement = document.getElementById(section + '-section');
+            if (sectionElement) {
+                sectionElement.classList.add('active');
+            }
+
+            event.currentTarget.classList.add('active');
+            document.getElementById('pageTitle').textContent = event.currentTarget.querySelector('span').textContent;
+
+            if (section === 'inbox') {
+                loadInbox();
+            }
+        }
+
+        // Load attendance status
+        function loadAttendanceStatus() {
+            const status = localStorage.getItem('attendanceStatus_' + user?.id);
+            if (status === 'checkedin') {
+                checkInTime = localStorage.getItem('checkInTime_' + user?.id);
+                checkInDate = localStorage.getItem('checkInDate_' + user?.id);
+                showCheckedInStatus();
+            }
+        }
+
+        // Show checked in status
+        function showCheckedInStatus() {
+            document.getElementById('todayStatusCard').className = 'status-card success';
+            document.getElementById('statusIcon').innerHTML = '<i class="fas fa-check-circle"></i>';
+            document.getElementById('statusTitle').textContent = 'Checked In';
+            document.getElementById('statusTime').textContent = `Marked at ${checkInTime}`;
+            document.getElementById('statusBadge').textContent = `Checked In at ${checkInTime}`;
+            document.getElementById('statusBadge').className = 'status-badge success';
+
+            document.getElementById('checkInProcess').style.display = 'none';
+            document.getElementById('checkOutProcess').style.display = 'block';
+
+            document.getElementById('displayCheckInTime').textContent = checkInTime;
+            document.getElementById('profileStatus').textContent = `Checked In at ${checkInTime}`;
+
+            updateTodayHours();
+        }
+
+        // ============ VERIFICATION FUNCTIONS ============
+
+        // Verify location with 1km radius
+        async function verifyLocation() {
+            const btn = document.getElementById('verifyLocationBtn');
+            const status = document.getElementById('locationStatus');
+
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying location within 1km radius...';
+            btn.disabled = true;
+            status.innerHTML = '';
+
+            try {
+                const result = await locationService.verifyLocation();
+
+                if (result.success) {
+                    status.innerHTML = `<i class="fas fa-check-circle"></i> ${result.message}`;
+                    status.classList.add('success');
+
+                    setTimeout(() => {
+                        document.getElementById('locationStep').style.display = 'none';
+                        document.getElementById('faceStep').style.display = 'block';
+                        startCameraWithEyeDetection();
+                    }, 1500);
+                } else {
+                    status.innerHTML = `<i class="fas fa-times-circle"></i> ${result.message}`;
+                    status.classList.remove('success');
+
+                    btn.innerHTML = '<i class="fas fa-location-dot"></i> Try Again';
+                    btn.disabled = false;
+                }
+            } catch (error) {
+                status.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${error.message}`;
+                btn.innerHTML = '<i class="fas fa-location-dot"></i> Try Again';
+                btn.disabled = false;
+            }
+        }
+
+        // Start camera with AI eye detection
+        async function startCameraWithEyeDetection() {
+            try {
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                }
+
+                const video = document.getElementById('video');
+                stream = await faceVerification.startCamera(video);
+
+                // Show confidence meter
+                const confidenceMeter = document.getElementById('confidenceMeter');
+                if (confidenceMeter) confidenceMeter.style.display = 'block';
+
+                // Start AI monitoring
+                faceVerification.startMonitoring((result) => {
+                    const faceGuide = document.getElementById('faceGuide');
+                    const status = document.getElementById('faceStatus');
+                    const confidenceFill = document.getElementById('confidenceFill');
+
+                    if (result.detected) {
+                        faceGuide.classList.add('detected');
+
+                        // Update confidence meter
+                        if (confidenceFill) {
+                            confidenceFill.style.width = `${Math.round(result.confidence * 100)}%`;
+                        }
+
+                        if (result.eyesOpen) {
+                            faceGuide.classList.add('eyes-open');
+                            status.innerHTML = `<i class="fas fa-check-circle"></i> Face detected with eyes open (${Math.round(result.confidence * 100)}% confidence)`;
+                            status.className = 'face-status-message success';
+                        } else {
+                            faceGuide.classList.remove('eyes-open');
+                            status.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Please open your eyes';
+                            status.className = 'face-status-message warning';
+                        }
+                    } else {
+                        faceGuide.classList.remove('detected', 'eyes-open');
+                        status.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Looking for face...';
+                        status.className = 'face-status-message';
+
+                        if (confidenceFill) {
+                            confidenceFill.style.width = '0%';
+                        }
+                    }
+                });
+
+            } catch (error) {
+                alert('Camera access is required for face verification. Please allow camera access and try again.');
+                document.getElementById('faceStep').style.display = 'none';
+                document.getElementById('locationStep').style.display = 'block';
+                document.getElementById('verifyLocationBtn').innerHTML = '<i class="fas fa-location-dot"></i> Verify Location';
+                document.getElementById('verifyLocationBtn').disabled = false;
+            }
+        }
+
+        // REAL AI face capture with eye detection
+        async function captureFace() {
+            const status = document.getElementById('faceStatus');
+            const captureBtn = document.getElementById('captureBtn');
+            const faceGuide = document.getElementById('faceGuide');
+
+            status.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Initializing AI face detection...';
+            captureBtn.disabled = true;
+
+            try {
+                // Load models if not already loaded
+                if (!faceVerification.modelsLoaded) {
+                    status.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading AI models...';
+                    await faceVerification.loadModels();
+                }
+
+                // Wait for stable detection (2 seconds)
+                await new Promise(resolve => setTimeout(resolve, 2000));
+
+                // Perform final verification
+                const result = await faceVerification.verifyFace(true);
+
+                if (result.success) {
+                    status.innerHTML = `<i class="fas fa-check-circle"></i> ${result.message}`;
+                    status.className = 'face-status-message success';
+
+                    // Stop monitoring
+                    faceVerification.stopMonitoring();
+
+                    // Stop camera
+                    if (stream) {
+                        stream.getTracks().forEach(track => track.stop());
+                    }
+
+                    // Hide confidence meter
+                    const confidenceMeter = document.getElementById('confidenceMeter');
+                    if (confidenceMeter) confidenceMeter.style.display = 'none';
+
+                    // Move to confirmation step
+                    setTimeout(() => {
+                        document.getElementById('faceStep').style.display = 'none';
+                        document.getElementById('confirmStep').style.display = 'block';
+
+                        const now = new Date();
+                        document.getElementById('confirmDate').textContent = now.toLocaleDateString();
+                        document.getElementById('confirmTime').textContent = now.toLocaleTimeString();
+                    }, 1500);
+
+                } else {
+                    status.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${result.message}`;
+                    status.className = 'face-status-message error';
+                    captureBtn.disabled = false;
+                    faceVerification.stopMonitoring();
+                }
+
+            } catch (error) {
+                status.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Error: ${error.message}`;
+                status.className = 'face-status-message error';
+                captureBtn.disabled = false;
+                faceVerification.stopMonitoring();
+                console.error('Face capture error:', error);
+            }
+        }
+
+        // Confirm check-in
+        function confirmCheckIn() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            const dateString = now.toLocaleDateString();
+
+            checkInTime = timeString;
+            checkInDate = dateString;
+
+            localStorage.setItem('attendanceStatus_' + user?.id, 'checkedin');
+            localStorage.setItem('checkInTime_' + user?.id, checkInTime);
+            localStorage.setItem('checkInDate_' + user?.id, checkInDate);
+
+            // Add to activities
+            const activities = JSON.parse(localStorage.getItem('activities_' + user?.id) || '[]');
+            activities.unshift({
+                icon: 'check-circle',
+                type: 'present',
+                title: 'Checked In',
+                description: 'Main Office (Location & AI Face Verified)',
+                time: `Today, ${timeString}`
+            });
+            localStorage.setItem('activities_' + user?.id, JSON.stringify(activities.slice(0, 10)));
+
+            showCheckedInStatus();
+
+            if (window.aiAssistant) {
+                aiAssistant.showNotification('success', 'Check-In Successful', `You checked in at ${checkInTime} with location & AI face verification`);
+            }
+
+            document.getElementById('confirmStep').style.display = 'none';
+            loadRecentActivity();
+        }
+
+        // ============ CHECK-OUT FUNCTIONS ============
+
+        // Show check-out verification modal
+        function showCheckOutVerification() {
+            const modal = document.getElementById('checkOutModal');
+            if (modal) {
+                modal.style.display = 'flex';
+                checkOutLocationVerified = false;
+                checkOutFaceVerified = false;
+                document.getElementById('checkOutLocationStep').style.display = 'block';
+                document.getElementById('checkOutFaceStep').style.display = 'none';
+                document.getElementById('checkOutConfirmStep').style.display = 'none';
+                document.getElementById('checkOutLocationStatus').innerHTML = '';
+                document.getElementById('checkOutFaceStatus').innerHTML = '';
+            }
+        }
+
+        // Verify check-out location
+        async function verifyCheckOutLocation() {
+            const btn = document.getElementById('checkOutLocationBtn');
+            const status = document.getElementById('checkOutLocationStatus');
+
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying location within 1km radius...';
+            btn.disabled = true;
+
+            try {
+                const result = await locationService.verifyLocation();
+
+                if (result.success) {
+                    status.innerHTML = `<i class="fas fa-check-circle"></i> ${result.message}`;
+                    status.classList.add('success');
+                    checkOutLocationVerified = true;
+
+                    document.getElementById('checkOutLocationStep').style.display = 'none';
+                    document.getElementById('checkOutFaceStep').style.display = 'block';
+
+                    startCheckOutCameraWithEyeDetection();
+                } else {
+                    status.innerHTML = `<i class="fas fa-times-circle"></i> ${result.message}`;
+                    status.classList.remove('success');
+
+                    btn.innerHTML = '<i class="fas fa-location-dot"></i> Try Again';
+                    btn.disabled = false;
+                }
+            } catch (error) {
+                status.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${error.message}`;
+                btn.innerHTML = '<i class="fas fa-location-dot"></i> Try Again';
+                btn.disabled = false;
+            }
+        }
+
+        // Start check-out camera with eye detection
+        async function startCheckOutCameraWithEyeDetection() {
+            try {
+                if (checkOutStream) {
+                    checkOutStream.getTracks().forEach(track => track.stop());
+                }
+
+                const video = document.getElementById('checkOutVideo');
+                checkOutStream = await faceVerification.startCamera(video);
+
+                const guide = document.getElementById('checkOutFaceGuide');
+                if (guide) {
+                    guide.classList.add('detected');
+                }
+            } catch (error) {
+                alert('Camera access required for face verification');
+            }
+        }
+
+        // Start check-out face verification with eye detection
+        async function startCheckOutFaceVerification() {
+            const status = document.getElementById('checkOutFaceStatus');
+            const startBtn = document.getElementById('startCheckOutFaceBtn');
+
+            status.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Detecting face and eyes...';
+            startBtn.disabled = true;
+
+            try {
+                const result = await faceVerification.verifyFace(true);
+
+                if (result.success) {
+                    status.innerHTML = `<i class="fas fa-check-circle"></i> ${result.message}`;
+                    status.classList.add('success');
+                    checkOutFaceVerified = true;
+
+                    if (checkOutStream) {
+                        checkOutStream.getTracks().forEach(track => track.stop());
+                    }
+
+                    document.getElementById('checkOutFaceStep').style.display = 'none';
+                    document.getElementById('checkOutConfirmStep').style.display = 'block';
+
+                    const now = new Date();
+                    const checkOutTime = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                    document.getElementById('modalCheckOutTime').textContent = checkOutTime;
+                    document.getElementById('modalCheckInTime').textContent = checkInTime || '09:00 AM';
+
+                    // Calculate hours
+                    const checkInTimeStr = checkInTime || '09:00 AM';
+                    const checkIn = new Date(`1970/01/01 ${checkInTimeStr}`);
+                    const checkOut = new Date(`1970/01/01 ${checkOutTime}`);
+                    const diffMs = checkOut - checkIn;
+                    const diffHrs = Math.floor(diffMs / 3600000);
+                    const diffMins = Math.floor((diffMs % 3600000) / 60000);
+                    document.getElementById('modalTotalHours').textContent = `${diffHrs}h ${diffMins}m`;
+                } else {
+                    status.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${result.message}`;
+                    status.classList.remove('success');
+                    startBtn.disabled = false;
+                }
+            } catch (error) {
+                status.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Error: ${error.message}`;
+                startBtn.disabled = false;
+            }
+        }
+
+        // Confirm check-out
+        function confirmCheckOut() {
+            const now = new Date();
+            const checkOutTime = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+            // Calculate hours
+            const checkInTimeStr = checkInTime || '09:00 AM';
+            const checkIn = new Date(`1970/01/01 ${checkInTimeStr}`);
+            const checkOut = new Date(`1970/01/01 ${checkOutTime}`);
+            const diffMs = checkOut - checkIn;
+            const diffHrs = Math.floor(diffMs / 3600000);
+            const diffMins = Math.floor((diffMs % 3600000) / 60000);
+            const totalHours = `${diffHrs}h ${diffMins}m`;
+
+            // Clear storage
+            localStorage.removeItem('attendanceStatus_' + user?.id);
+            localStorage.removeItem('checkInTime_' + user?.id);
+            localStorage.removeItem('checkInDate_' + user?.id);
+
+            // Add to activities
+            const activities = JSON.parse(localStorage.getItem('activities_' + user?.id) || '[]');
+            activities.unshift({
+                icon: 'sign-out-alt',
+                type: 'present',
+                title: 'Checked Out',
+                description: `Worked ${totalHours} (Location & AI Face Verified)`,
+                time: `Today, ${checkOutTime}`
+            });
+            localStorage.setItem('activities_' + user?.id, JSON.stringify(activities.slice(0, 10)));
+
+            // Reset UI
+            document.getElementById('todayStatusCard').className = 'status-card';
+            document.getElementById('statusIcon').innerHTML = '<i class="fas fa-clock"></i>';
+            document.getElementById('statusTitle').textContent = 'Not Checked In';
+            document.getElementById('statusTime').textContent = 'Please mark your attendance';
+            document.getElementById('statusBadge').textContent = 'Not Checked In';
+            document.getElementById('statusBadge').className = 'status-badge pending';
+
+            document.getElementById('checkOutProcess').style.display = 'none';
+            document.getElementById('checkInProcess').style.display = 'block';
+
+            document.getElementById('locationStep').style.display = 'block';
+            document.getElementById('faceStep').style.display = 'none';
+            document.getElementById('confirmStep').style.display = 'none';
+            document.getElementById('verifyLocationBtn').innerHTML = '<i class="fas fa-location-dot"></i> Verify Location';
+            document.getElementById('verifyLocationBtn').disabled = false;
+            document.getElementById('locationStatus').innerHTML = '';
+
+            document.getElementById('profileStatus').textContent = 'Not Checked In';
+            document.getElementById('todayHours').textContent = '0';
+
+            // Close modal
+            closeCheckOutModal();
+
+            // Show success message
+            if (window.aiAssistant) {
+                aiAssistant.showNotification('success', 'Check-Out Successful', `You checked out at ${checkOutTime} (${totalHours}) with AI verification`);
+            }
+
+            loadRecentActivity();
+        }
+
+        // Close check-out modal
+        function closeCheckOutModal() {
+            const modal = document.getElementById('checkOutModal');
+            if (modal) {
+                modal.style.display = 'none';
+                if (checkOutStream) {
+                    checkOutStream.getTracks().forEach(track => track.stop());
+                }
+            }
+
+            const btn = document.getElementById('verifyCheckOutBtn');
+            if (btn) {
+                btn.innerHTML = '<i class="fas fa-location-dot"></i> Verify & Check-Out';
+                btn.disabled = false;
+            }
+        }
+
+        // ============ LEAVE FUNCTIONS ============
+        function applyLeave() {
+            const type = document.getElementById('leaveType').value;
+            const start = document.getElementById('leaveStart').value;
+            const end = document.getElementById('leaveEnd').value;
+            const reason = document.getElementById('leaveReason').value;
+
+            if (!type || !start || !end || !reason) {
+                alert('Please fill all fields');
+                return;
+            }
+
+            if (new Date(start) > new Date(end)) {
+                alert('End date must be after start date');
+                return;
+            }
+
+            // Store leave data temporarily
+            sessionStorage.setItem('pendingLeave', JSON.stringify({
+                type, start, end, reason
+            }));
+
+            // Show face verification modal
+            showLeaveFaceVerification();
+        }
+
+        function showLeaveFaceVerification() {
+            const modal = document.getElementById('leaveFaceModal');
+            if (modal) {
+                modal.style.display = 'flex';
+                startLeaveCameraWithEyeDetection();
+            }
+        }
+
+        async function startLeaveCameraWithEyeDetection() {
+            try {
+                if (leaveStream) {
+                    leaveStream.getTracks().forEach(track => track.stop());
+                }
+
+                const video = document.getElementById('leaveVideo');
+                leaveStream = await faceVerification.startCamera(video);
+                leaveFaceVerified = false;
+
+                const guide = document.getElementById('leaveFaceGuide');
+                if (guide) {
+                    guide.classList.add('detected');
+                }
+
+                document.getElementById('startLeaveFaceBtn').style.display = 'block';
+                document.getElementById('verifyLeaveFaceBtn').style.display = 'none';
+                document.getElementById('leaveFaceStatus').innerHTML = '';
+            } catch (error) {
+                alert('Camera access required for face verification');
+            }
+        }
+
+        async function startLeaveFaceVerification() {
+            const status = document.getElementById('leaveFaceStatus');
+            const startBtn = document.getElementById('startLeaveFaceBtn');
+            const verifyBtn = document.getElementById('verifyLeaveFaceBtn');
+
+            status.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Detecting face and eyes...';
+            status.classList.add('success');
+
+            try {
+                const result = await faceVerification.verifyFace(true);
+
+                if (result.success) {
+                    status.innerHTML = '<i class="fas fa-check-circle"></i> Face captured successfully';
+                    leaveFaceVerified = true;
+
+                    startBtn.style.display = 'none';
+                    verifyBtn.style.display = 'block';
+                } else {
+                    status.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${result.message}`;
+                    status.classList.remove('success');
+                }
+            } catch (error) {
+                status.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Error: ${error.message}`;
+            }
+        }
+
+        // ============ UPDATED verifyLeaveFace WITH REAL EMAIL ============
+        function verifyLeaveFace() {
+            const status = document.getElementById('leaveFaceStatus');
+            status.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting leave request...';
+
+            setTimeout(async () => {
+                // Stop camera
+                if (leaveStream) {
+                    leaveStream.getTracks().forEach(track => track.stop());
+                }
+
+                // Get pending leave data
+                const pendingLeave = JSON.parse(sessionStorage.getItem('pendingLeave') || '{}');
+
+                // Create leave request
+                const leaveRequest = {
+                    id: Date.now().toString(),
+                    employeeId: user?.id,
+                    employeeName: user?.name,
+                    employeeEmail: user?.email,
+                    department: user?.department,
+                    type: pendingLeave.type,
+                    startDate: pendingLeave.start,
+                    endDate: pendingLeave.end,
+                    reason: pendingLeave.reason,
+                    status: 'pending',
+                    appliedOn: new Date().toISOString()
+                };
+
+                // Save to localStorage
+                const leaves = JSON.parse(localStorage.getItem('leaveRequests') || '[]');
+                leaves.push(leaveRequest);
+                localStorage.setItem('leaveRequests', JSON.stringify(leaves));
+
+                // Send REAL email notification to admin
+                if (window.emailService) {
+                    console.log('📧 Sending leave request email to admin...');
+                    const result = await emailService.notifyAdminLeaveRequest('admin@company.com', {
+                        employeeName: user?.name,
+                        type: pendingLeave.type,
+                        startDate: pendingLeave.start,
+                        endDate: pendingLeave.end,
+                        reason: pendingLeave.reason
+                    });
+
+                    if (result) {
+                        console.log('✅ Leave request email sent successfully');
+                    } else {
+                        console.log('⚠️ Email sending failed, but leave request saved locally');
+                    }
+                }
+
+                // Add to activities
+                const activities = JSON.parse(localStorage.getItem('activities_' + user?.id) || '[]');
+                activities.unshift({
+                    icon: 'umbrella-beach',
+                    type: 'leave',
+                    title: 'Leave Applied',
+                    description: `${pendingLeave.type} leave from ${pendingLeave.start} to ${pendingLeave.end}`,
+                    time: 'Just now'
+                });
+                localStorage.setItem('activities_' + user?.id, JSON.stringify(activities.slice(0, 10)));
+
+                // Clear form
+                document.getElementById('leaveType').value = '';
+                document.getElementById('leaveStart').value = '';
+                document.getElementById('leaveEnd').value = '';
+                document.getElementById('leaveReason').value = '';
+
+                // Update history
+                loadLeaveHistory();
+                loadRecentActivity();
+
+                // Clear session
+                sessionStorage.removeItem('pendingLeave');
+
+                // Close modal
+                closeLeaveFaceModal();
+
+                // Show success message
+                if (window.aiAssistant) {
+                    aiAssistant.showNotification('success', 'Leave Request Submitted', 'Your leave request has been submitted with face verification');
+                }
+
+                alert('✅ Leave request submitted successfully with face verification!');
+            }, 1500);
+        }
+
+        function closeLeaveFaceModal() {
+            const modal = document.getElementById('leaveFaceModal');
+            if (modal) {
+                modal.style.display = 'none';
+                if (leaveStream) {
+                    leaveStream.getTracks().forEach(track => track.stop());
+                }
+            }
+        }
+
+        // ============ INBOX FUNCTIONS ============
+        function loadInbox() {
+            const emails = JSON.parse(localStorage.getItem('emails') || '[]');
+            const inboxList = document.getElementById('inboxList');
+            const inboxCount = document.getElementById('inboxEmailCount');
+
+            const unreadCount = emails.filter(e => !e.read).length;
+            if (inboxCount) inboxCount.textContent = unreadCount;
+
+            if (!inboxList) return;
+
+            if (emails.length === 0) {
+                inboxList.innerHTML = `
+                    <div style="text-align: center; padding: 50px; color: var(--text-muted);">
+                        <i class="fas fa-envelope-open" style="font-size: 48px; margin-bottom: 20px;"></i>
+                        <h3>No emails yet from GeoFaceAttend</h3>
+                        <p>When you receive notifications, they'll appear here</p>
+                    </div>
+                `;
+                return;
+            }
+
+            inboxList.innerHTML = emails.map((email, index) => `
+                <div style="background: ${email.read ? 'var(--bg-tertiary)' : 'rgba(67, 97, 238, 0.05)'}; border-radius: 12px; padding: 20px; border-left: 4px solid ${email.read ? 'var(--border-color)' : '#10b981'}; cursor: pointer; margin-bottom: 15px;" onclick="markEmailAsRead(${index})">
+                    <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 10px; font-size: 16px;">
+                        📧 ${email.subject}
+                    </div>
+                    <div style="color: var(--text-secondary); font-size: 14px; white-space: pre-line; line-height: 1.6; margin-bottom: 10px; background: var(--card-bg); padding: 15px; border-radius: 8px;">
+                        ${email.content.replace(/\n/g, '<br>')}
+                    </div>
+                    <div style="display: flex; justify-content: space-between; color: var(--text-muted); font-size: 12px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-color);">
+                        <span><i class="fas fa-clock"></i> ${email.timestamp}</span>
+                        <span><i class="fas fa-user"></i> ${email.to || 'System'}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function markEmailAsRead(index) {
+            const emails = JSON.parse(localStorage.getItem('emails') || '[]');
+            if (emails[index]) {
+                emails[index].read = true;
+                localStorage.setItem('emails', JSON.stringify(emails));
+                loadInbox();
+                updateEmailBadge();
+            }
+        }
+
+        function updateEmailBadge() {
+            const emails = JSON.parse(localStorage.getItem('emails') || '[]');
+            const unreadCount = emails.filter(e => !e.read).length;
+
+            const badges = document.querySelectorAll('.notification-badge');
+            badges.forEach(badge => {
+                if (unreadCount > 0) {
+                    badge.style.display = 'block';
+                    badge.textContent = unreadCount;
+                } else {
+                    badge.style.display = 'none';
+                }
+            });
+        }
+
+        function openInbox() {
+            showSection('inbox');
+            document.querySelectorAll('.sidebar-nav a').forEach(a => {
+                if (a.querySelector('span')?.textContent === 'Inbox') {
+                    a.classList.add('active');
+                }
+            });
+        }
+
+        function refreshInbox() {
+            loadInbox();
+            if (window.aiAssistant) {
+                aiAssistant.showNotification('success', 'Inbox Refreshed', 'Latest emails loaded');
+            }
+        }
+
+        // Generate report
+        function generateReport() {
+            document.getElementById('reportPresent').textContent = '18';
+            document.getElementById('reportLate').textContent = '2';
+            document.getElementById('reportLeave').textContent = '1';
+            document.getElementById('reportAbsent').textContent = '1';
+
+            const reportCanvas = document.getElementById('reportChart');
+            if (reportCanvas) {
+                const ctx = reportCanvas.getContext('2d');
+                if (reportChart) {
+                    reportChart.destroy();
+                }
+                reportChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+                        datasets: [{
+                            label: 'Attendance %',
+                            data: [95, 92, 98, 95],
+                            borderColor: '#4361ee',
+                            backgroundColor: 'rgba(67, 97, 238, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top'
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: 100,
+                                ticks: {
+                                    callback: function (value) {
+                                        return value + '%';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        // Export report
+        function exportReport(format) {
+            alert(`📊 Exporting report as ${format.toUpperCase()}`);
+        }
+
+        // Update today's hours
+        function updateTodayHours() {
+            if (checkInTime) {
+                const now = new Date();
+                const checkIn = new Date(`1970/01/01 ${checkInTime}`);
+                const current = new Date(`1970/01/01 ${now.toLocaleTimeString()}`);
+                const diffMs = current - checkIn;
+                const diffHrs = Math.floor(diffMs / 3600000);
+                const diffMins = Math.floor((diffMs % 3600000) / 60000);
+                if (diffHrs >= 0 && diffMins >= 0) {
+                    document.getElementById('todayHours').textContent = `${diffHrs}h ${diffMins}m`;
+                    document.getElementById('displayHoursWorked').textContent = `${diffHrs}h ${diffMins}m`;
+                }
+            }
+        }
+
+        // Toggle profile menu
+        function toggleProfileMenu() {
+            document.getElementById('profileMenu').classList.toggle('active');
+        }
+
+        // Toggle theme
+        function toggleTheme() {
+            document.body.classList.toggle('dark-mode');
+            const icon = document.querySelector('.theme-toggle i');
+            if (icon) {
+                icon.className = document.body.classList.contains('dark-mode') ? 'fas fa-sun' : 'fas fa-moon';
+            }
+        }
+
+        // Logout
+        function logout() {
+            localStorage.removeItem('currentUser');
+            localStorage.removeItem('selectedRole');
+            window.location.href = '../index.html';
+        }
+
+        // Close profile menu when clicking outside
+        document.addEventListener('click', function (event) {
+            const menu = document.getElementById('profileMenu');
+            const profile = document.querySelector('.user-profile');
+
+            if (menu && menu.classList.contains('active') &&
+                !profile?.contains(event.target) &&
+                !menu.contains(event.target)) {
+                menu.classList.remove('active');
+            }
+        });
+
+        // Close modals when clicking outside
+        window.onclick = function (event) {
+            const checkoutModal = document.getElementById('checkOutModal');
+            const leaveModal = document.getElementById('leaveFaceModal');
+
+            if (event.target === checkoutModal) {
+                closeCheckOutModal();
+            }
+            if (event.target === leaveModal) {
+                closeLeaveFaceModal();
+            }
+        };
+
+        // Update date and time
+        function updateDateTime() {
+            const now = new Date();
+            const datetimeElement = document.getElementById('currentDateTime');
+            if (datetimeElement) {
+                datetimeElement.textContent = now.toLocaleString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                });
+            }
+            updateTodayHours();
+        }
+
+        // ============ INITIALIZATION ============
+        document.addEventListener('DOMContentLoaded', async function () {
+            // Initialize charts
+            initCharts();
+
+            // Load data
+            loadAttendanceStatus();
+            loadLeaveHistory();
+            loadRecentActivity();
+            updateEmailBadge();
+
+            // Initialize face AI
+            try {
+                console.log('🤖 Initializing Face AI...');
+
+                // Show loading indicator
+                const loadingIndicator = document.createElement('div');
+                loadingIndicator.className = 'ai-status-indicator';
+                loadingIndicator.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading AI models...';
+                document.body.appendChild(loadingIndicator);
+
+                // Load models
+                setTimeout(async () => {
+                    try {
+                        const modelsLoaded = await faceVerification.loadModels();
+                        if (modelsLoaded) {
+                            console.log('✅ Face AI models ready');
+                            loadingIndicator.innerHTML = '<i class="fas fa-check-circle"></i> AI Ready';
+                            loadingIndicator.style.background = '#10b981';
+
+                            setTimeout(() => {
+                                if (loadingIndicator.parentElement) {
+                                    loadingIndicator.remove();
+                                }
+                            }, 2000);
+                        }
+                    } catch (error) {
+                        console.warn('⚠️ Face models not loaded:', error);
+                        loadingIndicator.innerHTML = '<i class="fas fa-exclamation-triangle"></i> AI offline';
+                        loadingIndicator.style.background = '#f59e0b';
+
+                        setTimeout(() => {
+                            if (loadingIndicator.parentElement) {
+                                loadingIndicator.remove();
+                            }
+                        }, 3000);
+                    }
+                }, 1000);
+
+            } catch (error) {
+                console.error('❌ Failed to initialize Face AI:', error);
+            }
+        });
+
+        // Set intervals
+        setInterval(updateDateTime, 1000);
+        setInterval(updateEmailBadge, 5000);
+        updateDateTime();
+
+        // Make functions globally available
+        window.showSection = showSection;
+        window.verifyLocation = verifyLocation;
+        window.captureFace = captureFace;
+        window.confirmCheckIn = confirmCheckIn;
+        window.showCheckOutVerification = showCheckOutVerification;
+        window.verifyCheckOutLocation = verifyCheckOutLocation;
+        window.startCheckOutFaceVerification = startCheckOutFaceVerification;
+        window.confirmCheckOut = confirmCheckOut;
+        window.closeCheckOutModal = closeCheckOutModal;
+        window.applyLeave = applyLeave;
+        window.startLeaveFaceVerification = startLeaveFaceVerification;
+        window.verifyLeaveFace = verifyLeaveFace;
+        window.closeLeaveFaceModal = closeLeaveFaceModal;
+        window.generateReport = generateReport;
+        window.exportReport = exportReport;
+        window.toggleProfileMenu = toggleProfileMenu;
+        window.toggleTheme = toggleTheme;
+        window.logout = logout;
+        window.openInbox = openInbox;
+        window.refreshInbox = refreshInbox;
+        window.markEmailAsRead = markEmailAsRead;
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GeoFaceAttend - Authentication</title>
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- PWA Support -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="GeoFaceAttend">
+    <meta name="theme-color" content="#4361ee">
+    <link rel="apple-touch-icon" href="/assets/icons/icon-152x152.png">
+
+    <style>
+        .error-message {
+            color: #ef4444;
+            font-size: 12px;
+            margin-top: 4px;
+            display: block;
+        }
+
+        .form-group input.error,
+        .form-group select.error {
+            border-color: #ef4444;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .demo-note {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 12px;
+            color: var(--text-muted);
+            background: rgba(67, 97, 238, 0.1);
+            padding: 8px;
+            border-radius: 8px;
+        }
+
+        .demo-note strong {
+            color: var(--primary);
+            font-size: 14px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="auth-wrapper">
+        <div class="auth-card animate-slide">
+            <div class="auth-header">
+                <button onclick="window.location.href='index.html'" class="back-btn">
+                    <i class="fas fa-arrow-left"></i> Back
+                </button>
+                <div class="logo">
+                    <i class="fas fa-fingerprint"></i>
+                    <h2>GeoFaceAttend</h2>
+                </div>
+            </div>
+
+            <!-- Login Form -->
+            <div id="loginForm" class="auth-form active">
+                <h3>Welcome Back</h3>
+                <p class="auth-subtitle">Login with your Employee ID</p>
+
+                <div class="form-group">
+                    <label><i class="fas fa-id-card"></i> Employee ID</label>
+                    <input type="text" id="loginEmpId" placeholder="Enter your employee ID">
+                    <small class="error-message" id="loginEmpIdError"></small>
+                </div>
+
+                <div class="form-group">
+                    <label><i class="fas fa-lock"></i> Password</label>
+                    <input type="password" id="loginPassword" placeholder="Enter your password">
+                    <small class="error-message" id="loginPasswordError"></small>
+                </div>
+
+                <div style="text-align: right; margin-bottom: 15px;">
+                    <a href="#" onclick="forgotPassword()" style="color: var(--primary); font-size: 13px;">Forgot
+                        Password?</a>
+                </div>
+
+                <button onclick="handleLogin()" class="btn-primary btn-block">
+                    <i class="fas fa-paper-plane"></i> Login & Send OTP
+                </button>
+
+                <p class="auth-switch">
+                    Don't have an account?
+                    <a href="#" onclick="showRegister()">Register here</a>
+                </p>
+            </div>
+
+            <!-- Register Form -->
+            <div id="registerForm" class="auth-form">
+                <h3>Create Account</h3>
+                <p class="auth-subtitle">Register as new user</p>
+
+                <div class="form-group">
+                    <label><i class="fas fa-user"></i> Full Name</label>
+                    <input type="text" id="regName" placeholder="Enter your full name">
+                    <small class="error-message" id="regNameError"></small>
+                </div>
+
+                <div class="form-group">
+                    <label><i class="fas fa-envelope"></i> Email</label>
+                    <input type="email" id="regEmail" placeholder="Enter your email">
+                    <small class="error-message" id="regEmailError"></small>
+                </div>
+
+                <div class="form-group">
+                    <label><i class="fas fa-id-card"></i> Employee ID</label>
+                    <input type="text" id="regEmpId" placeholder="Enter employee ID">
+                    <small class="error-message" id="regEmpIdError"></small>
+                </div>
+
+                <div class="form-group">
+                    <label><i class="fas fa-lock"></i> Password</label>
+                    <input type="password" id="regPassword" placeholder="Create a password (min. 6 characters)">
+                    <small class="error-message" id="regPasswordError"></small>
+                </div>
+
+                <div class="form-group">
+                    <label><i class="fas fa-building"></i> Department</label>
+                    <select id="regDept">
+                        <option value="">Select Department</option>
+                        <option value="Engineering">Engineering</option>
+                        <option value="Sales">Sales</option>
+                        <option value="Marketing">Marketing</option>
+                        <option value="HR">Human Resources</option>
+                        <option value="Finance">Finance</option>
+                        <option value="Operations">Operations</option>
+                    </select>
+                    <small class="error-message" id="regDeptError"></small>
+                </div>
+
+                <button onclick="handleRegister()" class="btn-primary btn-block">
+                    <i class="fas fa-user-plus"></i> Register & Send OTP
+                </button>
+
+                <p class="auth-switch">
+                    Already have an account?
+                    <a href="#" onclick="showLogin()">Login here</a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- OTP Modal -->
+    <div id="otpModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-shield-alt"></i> Email Verification</h3>
+                <p>Enter the 6-digit code sent to your email</p>
+            </div>
+
+            <div class="otp-container">
+                <input type="text" class="otp-input" maxlength="1" onkeyup="moveToNext(this, 0)"
+                    onkeypress="allowOnlyNumbers(event)" autofocus>
+                <input type="text" class="otp-input" maxlength="1" onkeyup="moveToNext(this, 1)"
+                    onkeypress="allowOnlyNumbers(event)">
+                <input type="text" class="otp-input" maxlength="1" onkeyup="moveToNext(this, 2)"
+                    onkeypress="allowOnlyNumbers(event)">
+                <input type="text" class="otp-input" maxlength="1" onkeyup="moveToNext(this, 3)"
+                    onkeypress="allowOnlyNumbers(event)">
+                <input type="text" class="otp-input" maxlength="1" onkeyup="moveToNext(this, 4)"
+                    onkeypress="allowOnlyNumbers(event)">
+                <input type="text" class="otp-input" maxlength="1" onkeyup="moveToNext(this, 5)"
+                    onkeypress="allowOnlyNumbers(event)">
+            </div>
+
+            <div class="otp-timer">
+                <span id="otpTimer">02:00</span>
+                <button onclick="resendOTP()" id="resendBtn" disabled>Resend Code</button>
+            </div>
+
+            <button onclick="verifyOTP()" class="btn-primary btn-block">
+                <i class="fas fa-check"></i> Verify & Continue
+            </button>
+
+            <p class="demo-note">Demo: Use code <strong>123456</strong></p>
+        </div>
+    </div>
+
+    <script src="assets/js/auth.js"></script>
+    <script src="assets/js/email-service.js"></script>
+
+    <!-- Register Service Worker -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => {
+                        console.log('✅ Service Worker registered:', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('❌ Service Worker registration failed:', error);
+                    });
+            });
+
+            window.addEventListener('online', () => {
+                document.body.classList.remove('offline');
+            });
+
+            window.addEventListener('offline', () => {
+                document.body.classList.add('offline');
+            });
+        }
+
+        // Forgot Password Function
+        async function forgotPassword() {
+            const empId = prompt("Enter your Employee ID:");
+            if (!empId) return;
+
+            const users = JSON.parse(localStorage.getItem('users') || '[]');
+            const user = users.find(u => u.empId === empId);
+
+            if (user) {
+                const tempPassword = Math.random().toString(36).slice(-8);
+                user.password = tempPassword; // In production, hash this
+                localStorage.setItem('users', JSON.stringify(users));
+
+                if (window.emailService) {
+                    const subject = '🔐 Password Reset - GeoFaceAttend';
+                    const body = `GEOFACEATTEND to ${user.name}\n\nA message by has been received. Kindly respond at your earliest convenience.\n\n---\n\nGEOFACEATTEND\nHello ${user.name},\n\nYour temporary password is: ${tempPassword}\n\nPlease login and change your password immediately.\n\nBest regards,\nGeoFaceAttend Team\n\n---\n\n[Reply] [Forward]`;
+
+                    await emailService.sendRealEmail(user.email, subject, body);
+                    alert('✅ Temporary password sent to your email!');
+                }
+            } else {
+                alert('❌ Employee ID not found!');
+            }
+        }
+    </script>
+</body>
+
+</html>
