@@ -8,6 +8,8 @@
     <link rel="stylesheet" href="../assets/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- QR Code Generation Library -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 
     <!-- PWA Support -->
     <link rel="manifest" href="/manifest.json">
@@ -48,6 +50,10 @@
                 <a href="#analytics" onclick="showSection('analytics')">
                     <i class="fas fa-chart-pie"></i>
                     <span>Analytics</span>
+                </a>
+                <a href="#qr" onclick="showSection('qr'); loadQREmployees(); loadActiveQRs();">
+                    <i class="fas fa-qrcode"></i>
+                    <span>Outstation QR</span>
                 </a>
             </nav>
 
@@ -146,14 +152,14 @@
                             <span class="stat-change negative">+2 from yesterday</span>
                         </div>
                     </div>
-                    <div class="stat-card" onclick="showEmployeeList('leave')">
+                    <div class="stat-card" onclick="showEmployeeList('outstation')">
                         <div class="stat-icon">
-                            <i class="fas fa-umbrella-beach"></i>
+                            <i class="fas fa-map-marker-alt"></i>
                         </div>
                         <div class="stat-content">
-                            <h3>On Leave</h3>
-                            <p class="stat-number" id="onLeave">6</p>
-                            <span class="stat-label">4 pending approval</span>
+                            <h3>Outstation</h3>
+                            <p class="stat-number" id="outstationToday">12</p>
+                            <span class="stat-label">Remote work</span>
                         </div>
                     </div>
                 </div>
@@ -175,6 +181,9 @@
                     </button>
                     <button onclick="refreshData()" class="action-btn">
                         <i class="fas fa-sync-alt"></i> Refresh Data
+                    </button>
+                    <button onclick="sendTestNotification()" class="action-btn">
+                        <i class="fas fa-bell"></i> Test Notification
                     </button>
                 </div>
             </div>
@@ -254,6 +263,9 @@
                     <button onclick="generateReport()" class="btn-primary">
                         <i class="fas fa-sync-alt"></i> Generate
                     </button>
+                    <button onclick="exportToExcel()" class="btn-primary" style="margin-left: 10px;">
+                        <i class="fas fa-file-excel"></i> Export to Excel
+                    </button>
                 </div>
                 <div class="report-summary">
                     <div class="summary-card">
@@ -269,8 +281,8 @@
                         <span class="summary-value" id="reportLate">8</span>
                     </div>
                     <div class="summary-card">
-                        <span class="summary-label">On Leave</span>
-                        <span class="summary-value" id="reportLeave">6</span>
+                        <span class="summary-label">Outstation</span>
+                        <span class="summary-value" id="reportOutstation">12</span>
                     </div>
                 </div>
                 <div class="chart-container">
@@ -333,12 +345,12 @@
                     </div>
                     <div class="stat-card">
                         <div class="stat-icon" style="background: rgba(139, 92, 246, 0.1);">
-                            <i class="fas fa-building" style="color: #8b5cf6;"></i>
+                            <i class="fas fa-map-marker-alt" style="color: #8b5cf6;"></i>
                         </div>
                         <div class="stat-content">
-                            <h3>Departments</h3>
-                            <p class="stat-number" id="analyticsDepartments">0</p>
-                            <span class="stat-label">Active</span>
+                            <h3>Outstation</h3>
+                            <p class="stat-number" id="analyticsOutstation">0</p>
+                            <span class="stat-label">Remote workers</span>
                         </div>
                     </div>
                 </div>
@@ -362,6 +374,158 @@
                     <div class="stat-card" style="flex-direction: column; align-items: flex-start;">
                         <h3 style="margin-bottom: 15px;"><i class="fas fa-chart-line"></i> Leave Analytics</h3>
                         <div id="leaveAnalytics" style="width: 100%;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Outstation QR Code Generator Section -->
+            <div id="qr-section" class="section">
+                <div class="section-header">
+                    <h2><i class="fas fa-qrcode"></i> Outstation QR Code Generator</h2>
+                    <p class="text-muted">Generate QR codes for employees working outside office</p>
+                </div>
+
+                <div class="qr-generator-card"
+                    style="background: var(--card-bg); border-radius: 16px; padding: 30px; border: 1px solid var(--border-color); box-shadow: 0 2px 8px var(--shadow-color);">
+                    <div class="form-row" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
+                        <!-- Left Column - QR Form -->
+                        <div class="qr-form">
+                            <h3 style="margin-bottom: 20px;">Create Outstation QR Code</h3>
+
+                            <div class="form-group">
+                                <label><i class="fas fa-user-tie"></i> Select Employee</label>
+                                <select id="qrEmployeeSelect" class="form-control" style="width: 100%;">
+                                    <option value="">-- Select Employee --</option>
+                                    <!-- Will be populated by JavaScript -->
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label><i class="fas fa-map-marker-alt"></i> Work Location</label>
+                                <input type="text" id="qrLocation" class="form-control"
+                                    placeholder="e.g., Client Office, Mumbai" value="Client Site">
+                            </div>
+
+                            <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                                <div class="form-group">
+                                    <label><i class="fas fa-calendar"></i> Start Date</label>
+                                    <input type="date" id="qrStartDate" class="form-control">
+                                </div>
+                                <div class="form-group">
+                                    <label><i class="fas fa-calendar"></i> End Date</label>
+                                    <input type="date" id="qrEndDate" class="form-control">
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label><i class="fas fa-tasks"></i> Work Description</label>
+                                <textarea id="qrDescription" class="form-control" rows="3"
+                                    placeholder="Describe the work purpose..."></textarea>
+                            </div>
+
+                            <div class="form-group">
+                                <label><i class="fas fa-clock"></i> QR Valid For (Hours)</label>
+                                <input type="number" id="qrValidHours" class="form-control" value="24" min="1"
+                                    max="168">
+                            </div>
+
+                            <div class="form-group">
+                                <label><i class="fas fa-exchange-alt"></i> Allow Check-out with same QR</label>
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <input type="checkbox" id="qrAllowCheckout" checked
+                                        style="width: 20px; height: 20px;">
+                                    <span>Yes, allow employees to check-out using the same QR code</span>
+                                </div>
+                            </div>
+
+                            <button onclick="generateOutstationQR()" class="btn-primary btn-block">
+                                <i class="fas fa-qrcode"></i> Generate Outstation QR Code
+                            </button>
+                        </div>
+
+                        <!-- Right Column - QR Display -->
+                        <div class="qr-display"
+                            style="text-align: center; padding: 20px; background: var(--bg-tertiary); border-radius: 12px;">
+                            <div id="qrPreview" style="margin-bottom: 20px;">
+                                <div
+                                    style="padding: 40px; background: white; border-radius: 12px; display: inline-block;">
+                                    <div id="qrcode-container" style="width: 200px; height: 200px; margin: 0 auto;">
+                                        <!-- QR code will appear here -->
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="qrDetails"
+                                style="text-align: left; margin-top: 20px; padding: 15px; background: var(--card-bg); border-radius: 8px; display: none;">
+                                <h4>📋 QR Code Details:</h4>
+                                <p><strong>Employee:</strong> <span id="qrEmpName"></span></p>
+                                <p><strong>Location:</strong> <span id="qrLocName"></span></p>
+                                <p><strong>Valid Period:</strong> <span id="qrValidPeriod"></span></p>
+                                <p><strong>Purpose:</strong> <span id="qrPurpose"></span></p>
+                                <p><strong>Check-out:</strong> <span id="qrCheckout"></span></p>
+                            </div>
+
+                            <div class="qr-actions"
+                                style="margin-top: 20px; display: flex; gap: 10px; justify-content: center;">
+                                <button onclick="downloadQRCode()" class="btn-primary" id="downloadQrBtn" disabled>
+                                    <i class="fas fa-download"></i> Download QR
+                                </button>
+                                <button onclick="printQRCode()" class="btn-outline" id="printQrBtn" disabled>
+                                    <i class="fas fa-print"></i> Print
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Active QR Codes List -->
+                <div class="active-qr-list" style="margin-top: 30px;">
+                    <h3><i class="fas fa-history"></i> Active Outstation QR Codes</h3>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>EMPLOYEE</th>
+                                    <th>LOCATION</th>
+                                    <th>VALID FROM</th>
+                                    <th>VALID UNTIL</th>
+                                    <th>PURPOSE</th>
+                                    <th>STATUS</th>
+                                    <th>CHECK-OUT</th>
+                                    <th>ACTIONS</th>
+                                </tr>
+                            </thead>
+                            <tbody id="activeQrTable">
+                                <tr>
+                                    <td colspan="8" class="text-muted">No active QR codes</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Outstation Attendance History -->
+                <div class="outstation-history" style="margin-top: 30px;">
+                    <h3><i class="fas fa-history"></i> Outstation Attendance History</h3>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>EMPLOYEE</th>
+                                    <th>LOCATION</th>
+                                    <th>CHECK-IN</th>
+                                    <th>CHECK-OUT</th>
+                                    <th>DURATION</th>
+                                    <th>PURPOSE</th>
+                                    <th>STATUS</th>
+                                </tr>
+                            </thead>
+                            <tbody id="outstationHistoryTable">
+                                <tr>
+                                    <td colspan="7" class="text-muted">No outstation history</td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -427,6 +591,10 @@
         let analyticsDeptChart = null;
         let analyticsLeaveChart = null;
 
+        // ============ QR CODE VARIABLES ============
+        let currentQRCode = null;
+        let currentQRData = null;
+
         if (user) {
             document.getElementById('adminName').textContent = user.name || 'Admin User';
             document.getElementById('profileName').textContent = user.name || 'Admin User';
@@ -440,6 +608,10 @@
             loadEmployees();
             loadLeaveRequests();
             loadAnalytics();
+            loadQREmployees();
+            loadActiveQRs();
+            loadOutstationHistory();
+            updateOutstationCount();
         });
 
         function initCharts() {
@@ -465,10 +637,10 @@
                 attChart = new Chart(attCtx, {
                     type: 'bar',
                     data: {
-                        labels: ['Present', 'Late', 'Leave', 'Absent'],
+                        labels: ['Present', 'Late', 'Leave', 'Outstation'],
                         datasets: [{
-                            data: [142, 8, 6, 0],
-                            backgroundColor: ['#10b981', '#f59e0b', '#4361ee', '#ef4444']
+                            data: [142, 8, 6, 12],
+                            backgroundColor: ['#10b981', '#f59e0b', '#4361ee', '#8b5cf6']
                         }]
                     },
                     options: { responsive: true, plugins: { legend: { display: false } } }
@@ -631,12 +803,17 @@
             const body = document.getElementById('modalBody');
             const users = JSON.parse(localStorage.getItem('users') || '[]');
             const employees = users.filter(u => u.role === 'employee');
+
             if (category === 'total') {
                 title.textContent = `Total Employees (${employees.length})`;
                 body.innerHTML = employees.map(emp => `<div class="list-item"><span><strong>${emp.name}</strong></span><span>${emp.department}</span><span>${emp.empId}</span></div>`).join('');
             } else if (category === 'present') {
                 title.textContent = 'Present Today (142)';
                 body.innerHTML = `<div class="list-header"><span>Name</span><span>Department</span><span>Time</span></div><div class="list-item"><span>John Doe</span><span>Engineering</span><span>09:00 AM</span></div><div class="list-item"><span>Jane Smith</span><span>Marketing</span><span>08:55 AM</span></div>`;
+            } else if (category === 'outstation') {
+                const outstationCount = getOutstationCount();
+                title.textContent = `Outstation Today (${outstationCount})`;
+                body.innerHTML = loadOutstationList();
             }
             modal.style.display = 'flex';
         }
@@ -698,6 +875,7 @@
             document.getElementById('reportPresent').textContent = '142';
             document.getElementById('reportLate').textContent = '8';
             document.getElementById('reportLeave').textContent = '6';
+            document.getElementById('reportOutstation').textContent = '12';
             document.getElementById('reportTotal').textContent = '156';
             const ctx = document.getElementById('reportChart')?.getContext('2d');
             if (ctx) {
@@ -738,6 +916,9 @@
         function refreshData() {
             loadEmployees();
             loadLeaveRequests();
+            loadActiveQRs();
+            loadOutstationHistory();
+            updateOutstationCount();
             if (window.notificationSystem) {
                 notificationSystem.show({ title: 'Data Refreshed', message: 'Latest data loaded', type: 'success' });
             }
@@ -767,13 +948,13 @@
         function loadAnalytics() {
             const users = JSON.parse(localStorage.getItem('users') || '[]');
             const leaves = JSON.parse(localStorage.getItem('leaveRequests') || '[]');
+            const outstation = JSON.parse(localStorage.getItem('outstationHistory') || '[]');
             const employees = users.filter(u => u.role === 'employee');
 
             const totalEmployees = employees.length;
             const totalLeaves = leaves.length;
             const pendingLeaves = leaves.filter(l => l.status === 'pending').length;
-            const approvedLeaves = leaves.filter(l => l.status === 'approved').length;
-            const rejectedLeaves = leaves.filter(l => l.status === 'rejected').length;
+            const outstationCount = outstation.filter(o => !o.checkOutTime).length;
 
             const deptCount = {};
             employees.forEach(emp => { deptCount[emp.department] = (deptCount[emp.department] || 0) + 1; });
@@ -784,9 +965,10 @@
             document.getElementById('analyticsAttendanceRate').textContent = attendanceRate + '%';
             document.getElementById('analyticsTotalLeaves').textContent = totalLeaves;
             document.getElementById('analyticsPendingLeaves').textContent = pendingLeaves;
+            document.getElementById('analyticsOutstation').textContent = outstationCount;
             document.getElementById('analyticsDepartments').textContent = Object.keys(deptCount).length;
 
-            updateAnalyticsCharts(deptCount, { pending: pendingLeaves, approved: approvedLeaves, rejected: rejectedLeaves });
+            updateAnalyticsCharts(deptCount, { pending: pendingLeaves, approved: leaves.filter(l => l.status === 'approved').length, rejected: leaves.filter(l => l.status === 'rejected').length });
             updateTopEmployees(employees);
             updateLeaveAnalytics(leaves);
         }
@@ -889,12 +1071,19 @@
         function exportAnalytics() {
             const users = JSON.parse(localStorage.getItem('users') || '[]');
             const leaves = JSON.parse(localStorage.getItem('leaveRequests') || '[]');
+            const outstation = JSON.parse(localStorage.getItem('outstationHistory') || '[]');
+
             let csv = 'GEOFACEATTEND ANALYTICS REPORT\n';
             csv += `Generated: ${new Date().toLocaleString()}\n\n`;
             csv += 'EMPLOYEES\nName,Email,Department,Role\n';
             users.forEach(u => { csv += `${u.name},${u.email},${u.department},${u.role}\n`; });
             csv += '\nLEAVE REQUESTS\nEmployee,Type,Start,End,Status,Reason\n';
             leaves.forEach(l => { csv += `${l.employeeName},${l.type},${l.startDate},${l.endDate},${l.status},${l.reason}\n`; });
+            csv += '\nOUTSTATION ATTENDANCE\nEmployee,Location,Check-In,Check-Out,Purpose\n';
+            outstation.forEach(o => {
+                csv += `${o.employeeName},${o.location},${o.checkInTime || ''},${o.checkOutTime || ''},${o.purpose}\n`;
+            });
+
             const blob = new Blob([csv], { type: 'text/csv' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -904,6 +1093,479 @@
             if (window.notificationSystem) {
                 notificationSystem.show({ title: 'Report Exported', message: 'Analytics CSV downloaded', type: 'success' });
             }
+        }
+
+        // Excel Export Function
+        function exportToExcel() {
+            if (window.notificationSystem) {
+                notificationSystem.show({ title: '📊 Generating Excel', message: 'Please wait...', type: 'info' });
+            }
+
+            const script = document.createElement('script');
+            script.src = 'https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js';
+            script.onload = function () {
+                const users = JSON.parse(localStorage.getItem('users') || '[]');
+                const leaves = JSON.parse(localStorage.getItem('leaveRequests') || '[]');
+                const emails = JSON.parse(localStorage.getItem('emails') || '[]');
+                const outstation = JSON.parse(localStorage.getItem('outstationHistory') || '[]');
+
+                const wb = XLSX.utils.book_new();
+
+                const usersFormatted = users.map(user => ({
+                    'Employee ID': user.empId,
+                    'Name': user.name,
+                    'Email': user.email,
+                    'Department': user.department,
+                    'Role': user.role,
+                    'Joined': user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'
+                }));
+
+                const ws1 = XLSX.utils.json_to_sheet(usersFormatted);
+                XLSX.utils.book_append_sheet(wb, ws1, "Employees");
+
+                const leavesFormatted = leaves.map(leave => ({
+                    'Employee': leave.employeeName,
+                    'Department': leave.department,
+                    'Type': leave.type,
+                    'Start Date': leave.startDate,
+                    'End Date': leave.endDate,
+                    'Status': leave.status,
+                    'Reason': leave.reason,
+                    'Applied On': leave.appliedOn ? new Date(leave.appliedOn).toLocaleDateString() : 'N/A'
+                }));
+
+                const ws2 = XLSX.utils.json_to_sheet(leavesFormatted);
+                XLSX.utils.book_append_sheet(wb, ws2, "Leave Requests");
+
+                const emailsFormatted = emails.map(email => ({
+                    'To': email.to,
+                    'Subject': email.subject,
+                    'Timestamp': email.timestamp,
+                    'Read': email.read ? 'Yes' : 'No'
+                }));
+
+                const ws3 = XLSX.utils.json_to_sheet(emailsFormatted);
+                XLSX.utils.book_append_sheet(wb, ws3, "Email Notifications");
+
+                const outstationFormatted = outstation.map(o => ({
+                    'Employee': o.employeeName,
+                    'Location': o.location,
+                    'Check-In': o.checkInTime,
+                    'Check-Out': o.checkOutTime || 'Not checked out',
+                    'Purpose': o.purpose,
+                    'Date': o.date
+                }));
+
+                const ws4 = XLSX.utils.json_to_sheet(outstationFormatted);
+                XLSX.utils.book_append_sheet(wb, ws4, "Outstation Attendance");
+
+                const summaryData = [
+                    { 'Metric': 'Total Employees', 'Value': users.filter(u => u.role === 'employee').length },
+                    { 'Metric': 'Total Admins', 'Value': users.filter(u => u.role === 'admin').length },
+                    { 'Metric': 'Total Leave Requests', 'Value': leaves.length },
+                    { 'Metric': 'Pending Leaves', 'Value': leaves.filter(l => l.status === 'pending').length },
+                    { 'Metric': 'Approved Leaves', 'Value': leaves.filter(l => l.status === 'approved').length },
+                    { 'Metric': 'Rejected Leaves', 'Value': leaves.filter(l => l.status === 'rejected').length },
+                    { 'Metric': 'Total Emails', 'Value': emails.length },
+                    { 'Metric': 'Unread Emails', 'Value': emails.filter(e => !e.read).length },
+                    { 'Metric': 'Outstation Today', 'Value': outstation.filter(o => !o.checkOutTime).length },
+                    { 'Metric': 'Generated On', 'Value': new Date().toLocaleString() }
+                ];
+
+                const ws5 = XLSX.utils.json_to_sheet(summaryData);
+                XLSX.utils.book_append_sheet(wb, ws5, "Summary");
+
+                const date = new Date().toISOString().split('T')[0];
+                const filename = `GeoFaceAttend-Report-${date}.xlsx`;
+
+                XLSX.writeFile(wb, filename);
+
+                if (window.notificationSystem) {
+                    notificationSystem.show({ title: '✅ Excel Downloaded', message: `Report saved as ${filename}`, type: 'success' });
+                }
+            };
+            document.head.appendChild(script);
+        }
+
+        // Test Notification Function
+        function sendTestNotification() {
+            if (Notification.permission === 'granted') {
+                new Notification('GeoFaceAttend Admin', {
+                    body: 'This is a test notification from admin panel',
+                    icon: '/assets/icons/icon-192x192.png',
+                    vibrate: [200, 100, 200]
+                });
+            } else {
+                alert('Please enable notifications first');
+                Notification.requestPermission();
+            }
+        }
+
+        // ============ OUTSTATION QR FUNCTIONS ============
+
+        // Load employees into dropdown
+        function loadQREmployees() {
+            const users = JSON.parse(localStorage.getItem('users') || '[]');
+            const employees = users.filter(u => u.role === 'employee');
+            const select = document.getElementById('qrEmployeeSelect');
+
+            if (select) {
+                select.innerHTML = '<option value="">-- Select Employee --</option>' +
+                    employees.map(emp => `<option value="${emp.empId}" data-email="${emp.email}" data-name="${emp.name}">${emp.empId} - ${emp.name} (${emp.department})</option>`).join('');
+            }
+        }
+
+        // Generate outstation QR code
+        function generateOutstationQR() {
+            // Get form values
+            const empSelect = document.getElementById('qrEmployeeSelect');
+            const empId = empSelect.value;
+            const empName = empSelect.selectedOptions[0]?.dataset.name;
+            const empEmail = empSelect.selectedOptions[0]?.dataset.email;
+            const location = document.getElementById('qrLocation').value;
+            const startDate = document.getElementById('qrStartDate').value;
+            const endDate = document.getElementById('qrEndDate').value;
+            const description = document.getElementById('qrDescription').value;
+            const validHours = document.getElementById('qrValidHours').value;
+            const allowCheckout = document.getElementById('qrAllowCheckout').checked;
+
+            // Validate
+            if (!empId) {
+                alert('Please select an employee');
+                return;
+            }
+            if (!location) {
+                alert('Please enter work location');
+                return;
+            }
+            if (!startDate || !endDate) {
+                alert('Please select start and end dates');
+                return;
+            }
+            if (new Date(startDate) > new Date(endDate)) {
+                alert('End date must be after start date');
+                return;
+            }
+            if (!description) {
+                alert('Please enter work description');
+                return;
+            }
+
+            // Create QR data
+            const qrData = {
+                type: 'outstation',
+                empId: empId,
+                empName: empName,
+                empEmail: empEmail,
+                location: location,
+                startDate: startDate,
+                endDate: endDate,
+                description: description,
+                validHours: parseInt(validHours),
+                allowCheckout: allowCheckout,
+                generatedBy: user?.name || 'Admin',
+                generatedAt: new Date().toISOString(),
+                qrId: 'QR-' + Date.now()
+            };
+
+            // Save current QR data
+            currentQRData = qrData;
+
+            // Generate QR code
+            const qrContainer = document.getElementById('qrcode-container');
+            qrContainer.innerHTML = ''; // Clear previous
+
+            // Create QR code
+            new QRCode(qrContainer, {
+                text: JSON.stringify(qrData),
+                width: 200,
+                height: 200,
+                colorDark: "#4361ee",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.H
+            });
+
+            // Display details
+            document.getElementById('qrEmpName').textContent = empName;
+            document.getElementById('qrLocName').textContent = location;
+            document.getElementById('qrValidPeriod').textContent = `${startDate} to ${endDate}`;
+            document.getElementById('qrPurpose').textContent = description;
+            document.getElementById('qrCheckout').textContent = allowCheckout ? '✅ Allowed with same QR' : '❌ Separate check-out required';
+            document.getElementById('qrDetails').style.display = 'block';
+
+            // Enable buttons
+            document.getElementById('downloadQrBtn').disabled = false;
+            document.getElementById('printQrBtn').disabled = false;
+
+            // Save to active QR list
+            saveActiveQR(qrData);
+
+            // Show success message
+            if (window.notificationSystem) {
+                notificationSystem.show({
+                    title: '✅ QR Code Generated',
+                    message: `Outstation QR for ${empName} created`,
+                    type: 'success'
+                });
+            }
+        }
+
+        // Save QR to active list
+        function saveActiveQR(qrData) {
+            const activeQRs = JSON.parse(localStorage.getItem('activeQRCodes') || '[]');
+
+            // Add expiry timestamp
+            const now = new Date();
+            const expiryDate = new Date(now.getTime() + qrData.validHours * 60 * 60 * 1000);
+            qrData.expiresAt = expiryDate.toISOString();
+
+            activeQRs.unshift(qrData);
+            localStorage.setItem('activeQRCodes', JSON.stringify(activeQRs.slice(0, 50))); // Keep last 50
+
+            loadActiveQRs();
+        }
+
+        // Load active QR codes
+        function loadActiveQRs() {
+            const activeQRs = JSON.parse(localStorage.getItem('activeQRCodes') || '[]');
+            const tbody = document.getElementById('activeQrTable');
+
+            if (!tbody) return;
+
+            if (activeQRs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="text-muted">No active QR codes</td></tr>';
+                return;
+            }
+
+            const now = new Date();
+
+            tbody.innerHTML = activeQRs.map(qr => {
+                const expiryDate = new Date(qr.expiresAt);
+                const isExpired = now > expiryDate;
+                const timeLeft = Math.floor((expiryDate - now) / (1000 * 60 * 60)); // hours left
+
+                return `
+                    <tr>
+                        <td>
+                            <div class="employee-info">
+                                <strong>${qr.empName}</strong>
+                                <span>${qr.empId}</span>
+                            </div>
+                        </td>
+                        <td>${qr.location}</td>
+                        <td>${new Date(qr.startDate).toLocaleDateString()}</td>
+                        <td>${new Date(qr.endDate).toLocaleDateString()}</td>
+                        <td class="reason-cell">${qr.description.substring(0, 30)}${qr.description.length > 30 ? '...' : ''}</td>
+                        <td>
+                            ${isExpired
+                        ? '<span class="status-badge rejected">Expired</span>'
+                        : `<span class="status-badge approved">Valid (${timeLeft}h left)</span>`
+                    }
+                        </td>
+                        <td>
+                            ${qr.allowCheckout
+                        ? '<span class="status-badge success">Same QR</span>'
+                        : '<span class="status-badge pending">Separate</span>'
+                    }
+                        </td>
+                        <td>
+                            <button onclick="viewQRDetails('${qr.qrId}')" class="action-edit" title="View Details">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button onclick="regenerateQR('${qr.qrId}')" class="action-approve" title="Regenerate">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                            <button onclick="deleteQR('${qr.qrId}')" class="action-reject" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // View QR details
+        function viewQRDetails(qrId) {
+            const activeQRs = JSON.parse(localStorage.getItem('activeQRCodes') || '[]');
+            const qr = activeQRs.find(q => q.qrId === qrId);
+
+            if (qr) {
+                alert(`
+📋 OUTSTATION QR DETAILS
+━━━━━━━━━━━━━━━━━━━━━━━
+Employee: ${qr.empName} (${qr.empId})
+Location: ${qr.location}
+Period: ${new Date(qr.startDate).toLocaleDateString()} to ${new Date(qr.endDate).toLocaleDateString()}
+Purpose: ${qr.description}
+Generated: ${new Date(qr.generatedAt).toLocaleString()}
+Expires: ${new Date(qr.expiresAt).toLocaleString()}
+Generated By: ${qr.generatedBy}
+Check-out: ${qr.allowCheckout ? 'Allowed with same QR' : 'Separate QR required'}
+                `);
+            }
+        }
+
+        // Regenerate QR
+        function regenerateQR(qrId) {
+            const activeQRs = JSON.parse(localStorage.getItem('activeQRCodes') || '[]');
+            const qr = activeQRs.find(q => q.qrId === qrId);
+
+            if (qr) {
+                // Pre-fill form with existing data
+                document.getElementById('qrEmployeeSelect').value = qr.empId;
+                document.getElementById('qrLocation').value = qr.location;
+                document.getElementById('qrStartDate').value = qr.startDate;
+                document.getElementById('qrEndDate').value = qr.endDate;
+                document.getElementById('qrDescription').value = qr.description;
+                document.getElementById('qrValidHours').value = qr.validHours;
+                document.getElementById('qrAllowCheckout').checked = qr.allowCheckout;
+
+                // Generate new QR
+                generateOutstationQR();
+            }
+        }
+
+        // Delete QR
+        function deleteQR(qrId) {
+            if (confirm('Are you sure you want to delete this QR code?')) {
+                const activeQRs = JSON.parse(localStorage.getItem('activeQRCodes') || '[]');
+                const updatedQRs = activeQRs.filter(q => q.qrId !== qrId);
+                localStorage.setItem('activeQRCodes', JSON.stringify(updatedQRs));
+                loadActiveQRs();
+
+                if (window.notificationSystem) {
+                    notificationSystem.show({
+                        title: '✅ QR Deleted',
+                        message: 'QR code removed from active list',
+                        type: 'success'
+                    });
+                }
+            }
+        }
+
+        // Download QR code
+        function downloadQRCode() {
+            const canvas = document.querySelector('#qrcode-container canvas');
+            if (canvas) {
+                const link = document.createElement('a');
+                link.download = `Outstation-QR-${currentQRData.empId}-${Date.now()}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+
+                if (window.notificationSystem) {
+                    notificationSystem.show({
+                        title: '✅ QR Downloaded',
+                        message: 'QR code saved to your device',
+                        type: 'success'
+                    });
+                }
+            }
+        }
+
+        // Print QR code
+        function printQRCode() {
+            const canvas = document.querySelector('#qrcode-container canvas');
+            if (canvas) {
+                const printWindow = window.open('', '_blank');
+                printWindow.document.write(`
+                    <html>
+                        <head>
+                            <title>Outstation QR - ${currentQRData.empName}</title>
+                            <style>
+                                body { text-align: center; padding: 50px; font-family: Arial; }
+                                h2 { color: #4361ee; }
+                                .qr-container { margin: 30px auto; }
+                                .details { margin-top: 30px; text-align: left; max-width: 400px; margin-left: auto; margin-right: auto; }
+                                .label { font-weight: bold; color: #64748b; }
+                            </style>
+                        </head>
+                        <body>
+                            <h2>🏢 GeoFaceAttend - Outstation QR</h2>
+                            <div class="qr-container">
+                                <img src="${canvas.toDataURL('image/png')}" style="width: 200px; height: 200px;">
+                            </div>
+                            <div class="details">
+                                <p><span class="label">Employee:</span> ${currentQRData.empName} (${currentQRData.empId})</p>
+                                <p><span class="label">Location:</span> ${currentQRData.location}</p>
+                                <p><span class="label">Valid Period:</span> ${new Date(currentQRData.startDate).toLocaleDateString()} to ${new Date(currentQRData.endDate).toLocaleDateString()}</p>
+                                <p><span class="label">Purpose:</span> ${currentQRData.description}</p>
+                                <p><span class="label">Generated:</span> ${new Date().toLocaleString()}</p>
+                                <p><span class="label">Valid For:</span> ${currentQRData.validHours} hours</p>
+                                <p><span class="label">Check-out:</span> ${currentQRData.allowCheckout ? 'Allowed with same QR' : 'Separate QR required'}</p>
+                            </div>
+                            <p style="margin-top: 50px; color: #94a3b8;">Scan this QR code in the GeoFaceAttend app to mark outstation attendance</p>
+                        </body>
+                    </html>
+                `);
+                printWindow.document.close();
+                printWindow.print();
+            }
+        }
+
+        // Load outstation history
+        function loadOutstationHistory() {
+            const history = JSON.parse(localStorage.getItem('outstationHistory') || '[]');
+            const tbody = document.getElementById('outstationHistoryTable');
+
+            if (!tbody) return;
+
+            if (history.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-muted">No outstation history</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = history.map(entry => `
+                <tr>
+                    <td>
+                        <div class="employee-info">
+                            <strong>${entry.employeeName}</strong>
+                            <span>${entry.empId}</span>
+                        </div>
+                    </td>
+                    <td>${entry.location}</td>
+                    <td>${entry.checkInTime || 'N/A'}</td>
+                    <td>${entry.checkOutTime || 'Not checked out'}</td>
+                    <td>${entry.duration || 'N/A'}</td>
+                    <td class="reason-cell">${entry.purpose}</td>
+                    <td>
+                        ${entry.checkOutTime
+                    ? '<span class="status-badge approved">Completed</span>'
+                    : '<span class="status-badge pending">Active</span>'
+                }
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // Update outstation count
+        function updateOutstationCount() {
+            const outstation = JSON.parse(localStorage.getItem('outstationHistory') || '[]');
+            const activeCount = outstation.filter(o => !o.checkOutTime).length;
+            document.getElementById('outstationToday').textContent = activeCount;
+        }
+
+        // Get outstation count
+        function getOutstationCount() {
+            const outstation = JSON.parse(localStorage.getItem('outstationHistory') || '[]');
+            return outstation.filter(o => !o.checkOutTime).length;
+        }
+
+        // Load outstation list for modal
+        function loadOutstationList() {
+            const outstation = JSON.parse(localStorage.getItem('outstationHistory') || '[]');
+            const active = outstation.filter(o => !o.checkOutTime);
+
+            if (active.length === 0) {
+                return '<p class="text-muted">No active outstation employees</p>';
+            }
+
+            return active.map(entry => `
+                <div class="list-item">
+                    <span><strong>${entry.employeeName}</strong></span>
+                    <span>${entry.location}</span>
+                    <span>${entry.checkInTime}</span>
+                </div>
+            `).join('');
         }
 
         setInterval(updateDateTime, 1000);
@@ -927,6 +1589,18 @@
         window.logout = logout;
         window.refreshAnalytics = refreshAnalytics;
         window.exportAnalytics = exportAnalytics;
+        window.exportToExcel = exportToExcel;
+        window.sendTestNotification = sendTestNotification;
+
+        // QR functions
+        window.generateOutstationQR = generateOutstationQR;
+        window.downloadQRCode = downloadQRCode;
+        window.printQRCode = printQRCode;
+        window.viewQRDetails = viewQRDetails;
+        window.regenerateQR = regenerateQR;
+        window.deleteQR = deleteQR;
+        window.loadQREmployees = loadQREmployees;
+        window.loadActiveQRs = loadActiveQRs;
     </script>
 
     <!-- Register Service Worker -->

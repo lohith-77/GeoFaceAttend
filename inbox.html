@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Inbox - GeoFaceAttend</title>
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <!-- PWA Support -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="GeoFaceAttend">
+    <meta name="theme-color" content="#4361ee">
+    <link rel="apple-touch-icon" href="/assets/icons/icon-152x152.png">
+
+    <style>
+        .email-container {
+            max-width: 800px;
+            margin: 50px auto;
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .email-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .email-header h1 {
+            color: var(--text-primary);
+            font-size: 24px;
+        }
+
+        .email-header h1 i {
+            color: var(--primary);
+            margin-right: 10px;
+        }
+
+        .inbox-stats {
+            background: var(--bg-tertiary);
+            padding: 8px 16px;
+            border-radius: 20px;
+            color: var(--text-secondary);
+        }
+
+        .email-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .email-item {
+            background: var(--bg-tertiary);
+            border-radius: 12px;
+            padding: 20px;
+            border-left: 4px solid var(--primary);
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .email-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .email-item.unread {
+            border-left-color: #10b981;
+            background: rgba(16, 185, 129, 0.05);
+        }
+
+        .email-subject {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .email-content {
+            color: var(--text-secondary);
+            font-size: 14px;
+            white-space: pre-line;
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+
+        .email-meta {
+            display: flex;
+            justify-content: space-between;
+            color: var(--text-muted);
+            font-size: 12px;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .email-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .email-actions button {
+            padding: 5px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s;
+        }
+
+        .reply-btn {
+            background: var(--primary);
+            color: white;
+        }
+
+        .forward-btn {
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+        }
+
+        .empty-inbox {
+            text-align: center;
+            padding: 50px;
+            color: var(--text-muted);
+        }
+
+        .empty-inbox i {
+            font-size: 48px;
+            margin-bottom: 20px;
+            color: var(--primary);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="email-container">
+        <div class="email-header">
+            <h1><i class="fas fa-envelope"></i> GeoFaceAttend Inbox</h1>
+            <div class="inbox-stats">
+                <i class="fas fa-inbox"></i> Inbox: <span id="emailCount">0</span>
+            </div>
+        </div>
+
+        <div class="email-list" id="emailList">
+            <!-- Emails will be loaded here -->
+        </div>
+    </div>
+
+    <script>
+        function loadEmails() {
+            const emails = JSON.parse(localStorage.getItem('emails') || '[]');
+            const emailList = document.getElementById('emailList');
+            const emailCount = document.getElementById('emailCount');
+
+            emailCount.textContent = emails.length;
+
+            if (emails.length === 0) {
+                emailList.innerHTML = `
+                    <div class="empty-inbox">
+                        <i class="fas fa-envelope-open"></i>
+                        <h3>No emails yet</h3>
+                        <p>When you receive notifications from GeoFaceAttend, they'll appear here</p>
+                    </div>
+                `;
+                return;
+            }
+
+            emailList.innerHTML = emails.map((email, index) => `
+                <div class="email-item ${email.read ? '' : 'unread'}" onclick="markAsRead(${index})">
+                    <div class="email-subject">📧 ${email.subject}</div>
+                    <div class="email-content">${email.content.replace(/\n/g, '<br>')}</div>
+                    <div class="email-meta">
+                        <span><i class="fas fa-clock"></i> ${email.timestamp}</span>
+                        <span><i class="fas fa-user"></i> ${email.to || 'System'}</span>
+                    </div>
+                    <div class="email-actions">
+                        <button class="reply-btn" onclick="event.stopPropagation(); replyToEmail('${email.subject}')">
+                            <i class="fas fa-reply"></i> Reply
+                        </button>
+                        <button class="forward-btn" onclick="event.stopPropagation(); forwardEmail('${email.subject}')">
+                            <i class="fas fa-forward"></i> Forward
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function markAsRead(index) {
+            const emails = JSON.parse(localStorage.getItem('emails') || '[]');
+            if (emails[index]) {
+                emails[index].read = true;
+                localStorage.setItem('emails', JSON.stringify(emails));
+                loadEmails();
+            }
+        }
+
+        function replyToEmail(subject) {
+            alert(`Reply to: ${subject}\n(This would open reply compose window)`);
+        }
+
+        function forwardEmail(subject) {
+            alert(`Forward: ${subject}\n(This would open forward compose window)`);
+        }
+
+        document.addEventListener('DOMContentLoaded', loadEmails);
+        setInterval(loadEmails, 30000);
+    </script>
+
+    <!-- Register Service Worker -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').then(reg => console.log('✅ Service Worker registered')).catch(err => console.log('❌ SW failed'));
+            });
+            window.addEventListener('online', () => document.body.classList.remove('offline'));
+            window.addEventListener('offline', () => document.body.classList.add('offline'));
+        }
+    </script>
+</body>
+
+</html>

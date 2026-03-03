@@ -2,11 +2,14 @@
 class EmailService {
     constructor() {
         this.notificationTemplates = new Map();
-        this.apiUrl = 'http://localhost:5001'; // Your email API URL
+        // Auto-detect environment
+        this.apiUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? 'http://localhost:5001'  // Local development
+            : 'https://geofaceattend-api.onrender.com'; // Production (change to your Render URL)
         this.initializeTemplates();
     }
 
-    // Initialize email templates with exact format from image
+    // Initialize email templates with exact format
     initializeTemplates() {
         // Leave Approval Template
         this.notificationTemplates.set('leave-approved', {
@@ -173,6 +176,12 @@ class EmailService {
             duration: diffDays,
             reason: reason
         });
+    }
+
+    // Test email function
+    async sendTestEmail(to = 'test@example.com') {
+        const testBody = `TEST EMAIL\n\nThis is a test email from GeoFaceAttend.\n\nTime: ${new Date().toLocaleString()}`;
+        return this.sendRealEmail(to, 'Test from GeoFaceAttend', testBody);
     }
 }
 
