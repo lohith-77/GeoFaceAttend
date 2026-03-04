@@ -2,11 +2,12 @@
 class EmailService {
     constructor() {
         this.notificationTemplates = new Map();
-        // Auto-detect environment
+        // Auto-detect environment - works locally and in production
         this.apiUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
             ? 'http://localhost:5001'  // Local development
-            : 'https://geofaceattend-api.onrender.com'; // Production (change to your Render URL)
+            : 'https://geofaceattend-api.onrender.com'; // Your live backend URL on Render
         this.initializeTemplates();
+        console.log('📧 Email Service initialized with API URL:', this.apiUrl);
     }
 
     // Initialize email templates with exact format
@@ -40,11 +41,13 @@ class EmailService {
     async sendRealEmail(to, subject, body) {
         try {
             console.log('📧 Sending real email to:', to);
+            console.log('📡 Using API URL:', this.apiUrl);
 
             const response = await fetch(`${this.apiUrl}/send-email`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
                 },
                 body: JSON.stringify({
                     to: to,
@@ -56,7 +59,7 @@ class EmailService {
             const result = await response.json();
 
             if (result.success) {
-                console.log('✅ Real email sent successfully!');
+                console.log('✅ Real email sent successfully!', result.messageId);
 
                 // Also store in localStorage for inbox
                 this.storeEmail({
@@ -78,7 +81,7 @@ class EmailService {
         }
     }
 
-    // Send email (kept for backward compatibility)
+    // Send email using templates
     async sendEmail(to, type, data) {
         const template = this.notificationTemplates.get(type);
         if (!template) {
@@ -87,6 +90,7 @@ class EmailService {
         }
 
         const emailContent = template.template(data);
+        console.log('📨 Email content prepared for:', type);
 
         // Try to send real email first
         const sent = await this.sendRealEmail(to, template.subject, emailContent);
@@ -138,6 +142,13 @@ class EmailService {
 
     // Send leave request notification to admin
     async notifyAdminLeaveRequest(adminEmail, leaveData) {
+        // Get current user token
+        const token = localStorage.getItem('token');
+        if (!token) {
+            console.error('No authentication token found');
+            return false;
+        }
+
         return this.sendEmail(adminEmail, 'leave-request', {
             employeeName: leaveData.employeeName,
             leaveType: leaveData.type,
@@ -178,7 +189,7 @@ class EmailService {
         });
     }
 
-    // Test email function
+    // Test email function (for debugging)
     async sendTestEmail(to = 'test@example.com') {
         const testBody = `TEST EMAIL\n\nThis is a test email from GeoFaceAttend.\n\nTime: ${new Date().toLocaleString()}`;
         return this.sendRealEmail(to, 'Test from GeoFaceAttend', testBody);
