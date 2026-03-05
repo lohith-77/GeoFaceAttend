@@ -72,7 +72,6 @@ app.use(generalLimiter);
 app.use('/send-email', emailLimiter);
 
 // ============ TEST ENDPOINTS ============
-// Add these BEFORE all other routes to ensure they work
 
 app.get('/test', (req, res) => {
     res.json({
@@ -120,15 +119,14 @@ function authenticateToken(req, res, next) {
 }
 
 // ============ USERS WITH CORRECT PASSWORD HASHES ============
-// These are the actual bcrypt hashes for 'admin123' and 'emp123'
-// Generated on 2026-03-05
+// !!! IMPORTANT: Replace these with the hashes you generate !!!
 const users = [
     {
         id: '1',
         empId: 'ADM001',
         name: 'Admin User',
         email: 'admin@company.com',
-        password: '$2b$10$X7VYx8fK5LmNpQrStUvWxYzAbCdEfGhIjKlMnOpQrStUvWxYz',  // hash for 'admin123'
+        password:'$2b$10$nKQYYRbCyPGwP5CCK.Q.NuwTMQbiDAjnJaRCssLxPZNEUA1lFX5Hi',  
         department: 'Management',
         role: 'admin'
     },
@@ -137,7 +135,7 @@ const users = [
         empId: 'EMP001',
         name: 'John Employee',
         email: 'john@company.com',
-        password: '$2b$10$Y8WZx9gL6MnOpQrStUvWxYzAbCdEfGhIjKlMnOpQrStUvWxYa',  // hash for 'emp123'
+        password: '$2b$10$YR0vTD4Axz/IQMijKRM1veUM8b5MBFfdmecCy4E.xCig0PBtDDBuC',  
         department: 'Engineering',
         role: 'employee'
     }
@@ -295,7 +293,6 @@ app.get('/health', (req, res) => {
 });
 
 // ============ ERROR HANDLING ============
-// This MUST be at the end, after all routes
 
 app.use((req, res) => {
     console.log('404 Not Found:', req.method, req.url);
