@@ -71,6 +71,35 @@ const emailLimiter = rateLimit({
 app.use(generalLimiter);
 app.use('/send-email', emailLimiter);
 
+// ============ TEST ENDPOINTS ============
+// Add these BEFORE all other routes to ensure they work
+
+app.get('/test', (req, res) => {
+    res.json({
+        success: true,
+        message: '✅ GET test works!',
+        time: new Date(),
+        note: 'Server is running correctly'
+    });
+});
+
+app.post('/test-post', (req, res) => {
+    res.json({
+        success: true,
+        message: '✅ POST test works!',
+        body: req.body,
+        time: new Date()
+    });
+});
+
+app.get('/test-login', (req, res) => {
+    res.json({
+        success: true,
+        message: 'Login endpoint exists but requires POST',
+        instructions: 'Send a POST request to /login with JSON body: {"empId":"EMP001","password":"emp123"}'
+    });
+});
+
 // ============ HELPER FUNCTIONS ============
 
 function authenticateToken(req, res, next) {
@@ -154,6 +183,8 @@ app.post('/login', async (req, res) => {
     try {
         const { empId, password } = req.body;
 
+        console.log('Login attempt for empId:', empId);
+
         if (!empId || !password) {
             return res.status(400).json({ success: false, error: 'Missing employee ID or password' });
         }
@@ -161,12 +192,14 @@ app.post('/login', async (req, res) => {
         const user = users.find(u => u.empId === empId);
 
         if (!user) {
+            console.log('User not found:', empId);
             return res.status(401).json({ success: false, error: 'Invalid credentials' });
         }
 
         const match = await bcrypt.compare(password, user.password);
 
         if (!match) {
+            console.log('Password mismatch for:', empId);
             return res.status(401).json({ success: false, error: 'Invalid credentials' });
         }
 
@@ -185,6 +218,7 @@ app.post('/login', async (req, res) => {
             role: user.role
         };
 
+        console.log('Login successful for:', empId);
         res.json({ success: true, token: token, user: userData });
 
     } catch (error) {
@@ -256,14 +290,25 @@ app.get('/health', (req, res) => {
 });
 
 // ============ ERROR HANDLING ============
+// This MUST be at the end, after all routes
 
 app.use((req, res) => {
-    res.status(404).json({ success: false, error: 'Endpoint not found' });
+    console.log('404 Not Found:', req.method, req.url);
+    res.status(404).json({
+        success: false,
+        error: 'Endpoint not found',
+        requestedUrl: req.url,
+        method: req.method
+    });
 });
 
 app.use((err, req, res, next) => {
     console.error('Unhandled error:', err);
-    res.status(500).json({ success: false, error: 'Internal server error' });
+    res.status(500).json({
+        success: false,
+        error: 'Internal server error',
+        message: err.message
+    });
 });
 
 // ============ START SERVER ============
@@ -276,6 +321,10 @@ app.listen(PORT, () => {
     console.log(`   • POST /login`);
     console.log(`   • POST /register`);
     console.log(`   • GET /profile (Protected)`);
+    console.log(`🧪 Test endpoints:`);
+    console.log(`   • GET  /test`);
+    console.log(`   • POST /test-post`);
+    console.log(`   • GET  /test-login`);
     console.log(`💚 Health check: http://localhost:${PORT}/health`);
     console.log(`\n⚙️  Security Features:`);
     console.log(`   • Rate limiting: 100 requests/15min`);
