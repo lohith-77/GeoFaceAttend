@@ -3,18 +3,27 @@ require('dotenv').config();
 
 // Import required packages
 const express = require('express');
-const nodemailer = require('nodemailer');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const formData = require('form-data');
+const Mailgun = require('mailgun.js');
 
 // Create Express app
 const app = express();
 const PORT = process.env.PORT || 5001;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-key-change-this';
 const saltRounds = 10;
+
+// Initialize Mailgun
+const mailgun = new Mailgun(formData);
+const mg = mailgun.client({
+    username: 'api',
+    key: process.env.MAILGUN_API_KEY,
+    url: process.env.MAILGUN_URL || 'https://api.mailgun.net'
+});
 
 // ============ SECURITY MIDDLEWARE ============
 
@@ -24,11 +33,10 @@ app.use(helmet());
 // Enable CORS with proper configuration
 const allowedOrigins = process.env.ALLOWED_ORIGINS
     ? process.env.ALLOWED_ORIGINS.split(',')
-    : ['http://localhost:3000', 'http://127.0.0.1:3000'];
+    : ['http://localhost:3000', 'http://127.0.0.1:3000', 'https://geofaceattend-1.onrender.com'];
 
 app.use(cors({
     origin: function (origin, callback) {
-        // Allow requests with no origin (like mobile apps or curl)
         if (!origin) return callback(null, true);
         if (allowedOrigins.indexOf(origin) === -1) {
             const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
@@ -40,60 +48,42 @@ app.use(cors({
 }));
 
 // Parse JSON bodies
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
 // ============ RATE LIMITING ============
 
-// General rate limiter
 const generalLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // limit each IP to 100 requests per windowMs
-    message: {
-        success: false,
-        error: 'Too many requests, please try again later.'
-    },
+    windowMs: 15 * 60 * 1000,
+    max: 100,
+    message: { success: false, error: 'Too many requests, please try again later.' },
     standardHeaders: true,
     legacyHeaders: false
 });
 
-// Stricter rate limiter for email sending
 const emailLimiter = rateLimit({
-    windowMs: 60 * 60 * 1000, // 1 hour
-    max: 20, // limit each IP to 20 emails per hour
-    message: {
-        success: false,
-        error: 'Email rate limit exceeded. Please try again later.'
-    },
+    windowMs: 60 * 60 * 1000,
+    max: 20,
+    message: { success: false, error: 'Email rate limit exceeded. Please try again later.' },
     standardHeaders: true,
     legacyHeaders: false
 });
 
-// Apply general rate limiter to all requests
 app.use(generalLimiter);
-
-// Apply stricter rate limiter to email endpoint
 app.use('/send-email', emailLimiter);
 
 // ============ HELPER FUNCTIONS ============
 
-// Middleware to verify JWT
 function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
 
     if (!token) {
-        return res.status(401).json({
-            success: false,
-            error: 'No token provided'
-        });
+        return res.status(401).json({ success: false, error: 'No token provided' });
     }
 
     jwt.verify(token, JWT_SECRET, (err, user) => {
         if (err) {
-            return res.status(403).json({
-                success: false,
-                error: 'Invalid or expired token'
-            });
+            return res.status(403).json({ success: false, error: 'Invalid or expired token' });
         }
         req.user = user;
         next();
@@ -107,7 +97,7 @@ const users = [
         empId: 'ADM001',
         name: 'Admin User',
         email: 'admin@company.com',
-        password: '$2b$10$YourHashedPasswordHere', // You'll need to generate this
+        password: '$2b$10$YourHashedPasswordHere',
         department: 'Management',
         role: 'admin'
     },
@@ -116,7 +106,7 @@ const users = [
         empId: 'EMP001',
         name: 'John Employee',
         email: 'john@company.com',
-        password: '$2b$10$YourHashedPasswordHere', // You'll need to generate this
+        password: '$2b$10$YourHashedPasswordHere',
         department: 'Engineering',
         role: 'employee'
     }
@@ -124,32 +114,21 @@ const users = [
 
 // ============ AUTH ENDPOINTS ============
 
-// Registration endpoint
 app.post('/register', async (req, res) => {
     try {
         const { name, email, empId, password, department, role } = req.body;
 
-        // Validate input
         if (!name || !email || !empId || !password || !department || !role) {
-            return res.status(400).json({
-                success: false,
-                error: 'Missing required fields'
-            });
+            return res.status(400).json({ success: false, error: 'Missing required fields' });
         }
 
-        // Check if user exists
         const existingUser = users.find(u => u.empId === empId || u.email === email);
         if (existingUser) {
-            return res.status(409).json({
-                success: false,
-                error: 'User already exists'
-            });
+            return res.status(409).json({ success: false, error: 'User already exists' });
         }
 
-        // Hash password
         const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-        // Create new user
         const newUser = {
             id: Date.now().toString(),
             empId,
@@ -163,66 +142,40 @@ app.post('/register', async (req, res) => {
 
         users.push(newUser);
 
-        res.json({
-            success: true,
-            message: 'User registered successfully'
-        });
+        res.json({ success: true, message: 'User registered successfully' });
 
     } catch (error) {
         console.error('Registration error:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Registration failed'
-        });
+        res.status(500).json({ success: false, error: 'Registration failed' });
     }
 });
 
-// Login endpoint
 app.post('/login', async (req, res) => {
     try {
         const { empId, password } = req.body;
 
-        // Validate input
         if (!empId || !password) {
-            return res.status(400).json({
-                success: false,
-                error: 'Missing employee ID or password'
-            });
+            return res.status(400).json({ success: false, error: 'Missing employee ID or password' });
         }
 
-        // Find user
         const user = users.find(u => u.empId === empId);
 
         if (!user) {
-            return res.status(401).json({
-                success: false,
-                error: 'Invalid credentials'
-            });
+            return res.status(401).json({ success: false, error: 'Invalid credentials' });
         }
 
-        // Compare password
         const match = await bcrypt.compare(password, user.password);
 
         if (!match) {
-            return res.status(401).json({
-                success: false,
-                error: 'Invalid credentials'
-            });
+            return res.status(401).json({ success: false, error: 'Invalid credentials' });
         }
 
-        // Create JWT token
         const token = jwt.sign(
-            {
-                id: user.id,
-                empId: user.empId,
-                name: user.name,
-                role: user.role
-            },
+            { id: user.id, empId: user.empId, name: user.name, role: user.role },
             JWT_SECRET,
             { expiresIn: '24h' }
         );
 
-        // Return user data (without password)
         const userData = {
             id: user.id,
             empId: user.empId,
@@ -232,32 +185,20 @@ app.post('/login', async (req, res) => {
             role: user.role
         };
 
-        res.json({
-            success: true,
-            token: token,
-            user: userData
-        });
+        res.json({ success: true, token: token, user: userData });
 
     } catch (error) {
         console.error('Login error:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Login failed'
-        });
+        res.status(500).json({ success: false, error: 'Login failed' });
     }
 });
 
-// Protected route example
 app.get('/profile', authenticateToken, (req, res) => {
     const user = users.find(u => u.id === req.user.id);
     if (!user) {
-        return res.status(404).json({
-            success: false,
-            error: 'User not found'
-        });
+        return res.status(404).json({ success: false, error: 'User not found' });
     }
 
-    // Return user data without password
     const userData = {
         id: user.id,
         empId: user.empId,
@@ -267,85 +208,45 @@ app.get('/profile', authenticateToken, (req, res) => {
         role: user.role
     };
 
-    res.json({
-        success: true,
-        user: userData
-    });
+    res.json({ success: true, user: userData });
 });
 
-// ============ EMAIL SENDING ENDPOINT ============
+// ============ EMAIL SENDING ENDPOINT (using Mailgun) ============
 
-// Create email transporter
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_APP_PASS
-    }
-});
-
-// Test connection
-transporter.verify((error, success) => {
-    if (error) {
-        console.log('❌ Email error:', error);
-    } else {
-        console.log('✅ Email ready to send!');
-    }
-});
-
-// Email sending endpoint (protected)
 app.post('/send-email', authenticateToken, async (req, res) => {
     try {
         const { to, subject, text } = req.body;
 
-        // Check if all fields exist
         if (!to || !subject || !text) {
-            return res.status(400).json({
-                success: false,
-                error: 'Missing to, subject, or text'
-            });
+            return res.status(400).json({ success: false, error: 'Missing to, subject, or text' });
         }
 
-        // Validate email format
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(to)) {
-            return res.status(400).json({
-                success: false,
-                error: 'Invalid email format'
-            });
+            return res.status(400).json({ success: false, error: 'Invalid email format' });
         }
 
-        // Send email
-        const info = await transporter.sendMail({
-            from: `"GeoFaceAttend" <${process.env.GMAIL_USER}>`,
-            to: to,
+        // Send via Mailgun API (no SMTP ports needed!)
+        const msg = await mg.messages.create(process.env.MAILGUN_DOMAIN, {
+            from: `GeoFaceAttend <noreply@${process.env.MAILGUN_DOMAIN}>`,
+            to: [to],
             subject: subject,
             text: text,
             html: text.replace(/\n/g, '<br>')
         });
 
-        // Log email sending (for audit)
-        console.log(`📧 Email sent by ${req.user.empId} to ${to}: ${info.messageId}`);
+        console.log(`📧 Email sent by ${req.user.empId} to ${to}: ${msg.id}`);
 
-        // Success response
-        res.json({
-            success: true,
-            message: 'Email sent!',
-            messageId: info.messageId
-        });
+        res.json({ success: true, message: 'Email sent!', messageId: msg.id });
 
     } catch (error) {
-        console.error('Email error:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Failed to send email'
-        });
+        console.error('Mailgun error:', error);
+        res.status(500).json({ success: false, error: error.message || 'Failed to send email' });
     }
 });
 
 // ============ PUBLIC ENDPOINTS ============
 
-// Health check (public)
 app.get('/health', (req, res) => {
     res.json({
         status: 'OK',
@@ -356,27 +257,19 @@ app.get('/health', (req, res) => {
 
 // ============ ERROR HANDLING ============
 
-// 404 handler
 app.use((req, res) => {
-    res.status(404).json({
-        success: false,
-        error: 'Endpoint not found'
-    });
+    res.status(404).json({ success: false, error: 'Endpoint not found' });
 });
 
-// Global error handler
 app.use((err, req, res, next) => {
     console.error('Unhandled error:', err);
-    res.status(500).json({
-        success: false,
-        error: 'Internal server error'
-    });
+    res.status(500).json({ success: false, error: 'Internal server error' });
 });
 
 // ============ START SERVER ============
 
 app.listen(PORT, () => {
-    console.log(`\n🔒 GeoFaceAttend Secure API`);
+    console.log(`\n🔒 GeoFaceAttend Secure API (Mailgun Edition)`);
     console.log(`📡 Running on: http://localhost:${PORT}`);
     console.log(`📧 POST endpoint: http://localhost:${PORT}/send-email (Protected)`);
     console.log(`🔐 Auth endpoints:`);
@@ -390,5 +283,6 @@ app.listen(PORT, () => {
     console.log(`   • JWT authentication`);
     console.log(`   • Password hashing with bcrypt`);
     console.log(`   • Security headers (Helmet)`);
+    console.log(`   • Email via Mailgun API (no SMTP blocks!)`);
     console.log(`\n✅ Secure server ready!\n`);
 });
