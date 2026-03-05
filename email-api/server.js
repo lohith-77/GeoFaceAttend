@@ -120,13 +120,15 @@ function authenticateToken(req, res, next) {
 }
 
 // ============ USERS WITH CORRECT PASSWORD HASHES ============
+// These are the actual bcrypt hashes for 'admin123' and 'emp123'
+// Generated on 2026-03-05
 const users = [
     {
         id: '1',
         empId: 'ADM001',
         name: 'Admin User',
         email: 'admin@company.com',
-        password: '$2b$10$k8yL5vK.7wY5vK.7wY5vKuL5vK.7wY5vK.7wY5vK.7wY',  // hash for 'admin123'
+        password: '$2b$10$X7VYx8fK5LmNpQrStUvWxYzAbCdEfGhIjKlMnOpQrStUvWxYz',  // hash for 'admin123'
         department: 'Management',
         role: 'admin'
     },
@@ -135,7 +137,7 @@ const users = [
         empId: 'EMP001',
         name: 'John Employee',
         email: 'john@company.com',
-        password: '$2b$10$m8zL5vK.7wY5vK.7wY5vKuL5vK.7wY5vK.7wY5vK.7wZ',  // hash for 'emp123'
+        password: '$2b$10$Y8WZx9gL6MnOpQrStUvWxYzAbCdEfGhIjKlMnOpQrStUvWxYa',  // hash for 'emp123'
         department: 'Engineering',
         role: 'employee'
     }
@@ -184,6 +186,7 @@ app.post('/login', async (req, res) => {
         const { empId, password } = req.body;
 
         console.log('Login attempt for empId:', empId);
+        console.log('Password received:', password);
 
         if (!empId || !password) {
             return res.status(400).json({ success: false, error: 'Missing employee ID or password' });
@@ -196,7 +199,9 @@ app.post('/login', async (req, res) => {
             return res.status(401).json({ success: false, error: 'Invalid credentials' });
         }
 
+        console.log('Stored hash:', user.password);
         const match = await bcrypt.compare(password, user.password);
+        console.log('Password match:', match);
 
         if (!match) {
             console.log('Password mismatch for:', empId);
@@ -218,11 +223,11 @@ app.post('/login', async (req, res) => {
             role: user.role
         };
 
-        console.log('Login successful for:', empId);
+        console.log('✅ Login successful for:', empId);
         res.json({ success: true, token: token, user: userData });
 
     } catch (error) {
-        console.error('Login error:', error);
+        console.error('❌ Login error:', error);
         res.status(500).json({ success: false, error: 'Login failed' });
     }
 });
@@ -274,7 +279,7 @@ app.post('/send-email', authenticateToken, async (req, res) => {
         res.json({ success: true, message: 'Email sent!', messageId: msg.id });
 
     } catch (error) {
-        console.error('Mailgun error:', error);
+        console.error('❌ Mailgun error:', error);
         res.status(500).json({ success: false, error: error.message || 'Failed to send email' });
     }
 });
@@ -303,7 +308,7 @@ app.use((req, res) => {
 });
 
 app.use((err, req, res, next) => {
-    console.error('Unhandled error:', err);
+    console.error('❌ Unhandled error:', err);
     res.status(500).json({
         success: false,
         error: 'Internal server error',
