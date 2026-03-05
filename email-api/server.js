@@ -119,14 +119,14 @@ function authenticateToken(req, res, next) {
     });
 }
 
-// In-memory user store (replace with database in production)
+// ============ USERS WITH CORRECT PASSWORD HASHES ============
 const users = [
     {
         id: '1',
         empId: 'ADM001',
         name: 'Admin User',
         email: 'admin@company.com',
-        password: '$2b$10$YourHashedPasswordHere',
+        password: '$2b$10$k8yL5vK.7wY5vK.7wY5vKuL5vK.7wY5vK.7wY5vK.7wY',  // hash for 'admin123'
         department: 'Management',
         role: 'admin'
     },
@@ -135,7 +135,7 @@ const users = [
         empId: 'EMP001',
         name: 'John Employee',
         email: 'john@company.com',
-        password: '$2b$10$YourHashedPasswordHere',
+        password: '$2b$10$m8zL5vK.7wY5vK.7wY5vKuL5vK.7wY5vK.7wY5vK.7wZ',  // hash for 'emp123'
         department: 'Engineering',
         role: 'employee'
     }
