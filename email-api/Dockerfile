@@ -8,15 +8,8 @@ COPY package*.json ./
 # Install dependencies
 RUN npm ci --only=production
 
-# Copy application code
+# ... (previous lines)
 COPY . .
-
-# Run database migrations during build
-# This ensures tables are created before the app starts
-RUN node scripts/migrate.js
-
-# Expose the port
 EXPOSE 5001
-
-# Start the application
-CMD ["node", "server.js"]
+# Run migrations and then start the server
+CMD ["sh", "-c", "node scripts/migrate.js && node server.js"]
