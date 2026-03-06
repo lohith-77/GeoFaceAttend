@@ -7,7 +7,7 @@ async function migrate() {
 
     let pool;
     try {
-        DATABASE_URL = postgresql://geofaceattend_user:EUUAXZGNo4Dxc6BZMUWiss6wSSyhUHqY@dpg-d6kifj1aae7s73ae34d0-a/attendance_db_shr2
+        // Use DATABASE_URL if available (for Render), otherwise fall back to individual params
         let poolConfig;
 
         if (process.env.DATABASE_URL) {
@@ -58,6 +58,11 @@ async function migrate() {
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
 
+            -- Create index on emp_id
+            CREATE INDEX IF NOT EXISTS idx_users_emp_id ON users(emp_id);
+            CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+            CREATE INDEX IF NOT EXISTS idx_users_department ON users(department);
+
             -- Attendance table
             CREATE TABLE IF NOT EXISTS attendance (
                 id SERIAL PRIMARY KEY,
@@ -80,6 +85,10 @@ async function migrate() {
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
 
+            CREATE INDEX IF NOT EXISTS idx_attendance_emp_id ON attendance(emp_id);
+            CREATE INDEX IF NOT EXISTS idx_attendance_date ON attendance(date);
+            CREATE INDEX IF NOT EXISTS idx_attendance_check_in ON attendance(check_in);
+
             -- Leave requests table
             CREATE TABLE IF NOT EXISTS leave_requests (
                 id SERIAL PRIMARY KEY,
@@ -94,8 +103,14 @@ async function migrate() {
                 applied_on TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 approved_by VARCHAR(50),
                 approved_on TIMESTAMP,
-                rejection_reason TEXT
+                rejection_reason TEXT,
+                reviewed_by VARCHAR(50),
+                reviewed_at TIMESTAMP
             );
+
+            CREATE INDEX IF NOT EXISTS idx_leave_emp_id ON leave_requests(emp_id);
+            CREATE INDEX IF NOT EXISTS idx_leave_status ON leave_requests(status);
+            CREATE INDEX IF NOT EXISTS idx_leave_dates ON leave_requests(start_date, end_date);
 
             -- QR codes table
             CREATE TABLE IF NOT EXISTS qr_codes (
@@ -111,8 +126,14 @@ async function migrate() {
                 generated_by VARCHAR(50),
                 generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 expires_at TIMESTAMP,
-                is_active BOOLEAN DEFAULT true
+                is_active BOOLEAN DEFAULT true,
+                scan_count INTEGER DEFAULT 0,
+                last_scanned TIMESTAMP
             );
+
+            CREATE INDEX IF NOT EXISTS idx_qr_id ON qr_codes(qr_id);
+            CREATE INDEX IF NOT EXISTS idx_qr_emp_id ON qr_codes(emp_id);
+            CREATE INDEX IF NOT EXISTS idx_qr_active ON qr_codes(is_active);
 
             -- Outstation history table
             CREATE TABLE IF NOT EXISTS outstation_history (
@@ -131,14 +152,8 @@ async function migrate() {
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
 
-            -- Create indexes
-            CREATE INDEX IF NOT EXISTS idx_users_emp_id ON users(emp_id);
-            CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-            CREATE INDEX IF NOT EXISTS idx_attendance_emp_id ON attendance(emp_id);
-            CREATE INDEX IF NOT EXISTS idx_attendance_date ON attendance(date);
-            CREATE INDEX IF NOT EXISTS idx_leave_emp_id ON leave_requests(emp_id);
-            CREATE INDEX IF NOT EXISTS idx_qr_id ON qr_codes(qr_id);
             CREATE INDEX IF NOT EXISTS idx_outstation_emp_id ON outstation_history(emp_id);
+            CREATE INDEX IF NOT EXISTS idx_outstation_dates ON outstation_history(check_in, check_out);
         `);
 
         console.log('✅ All tables created successfully');
