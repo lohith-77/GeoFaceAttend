@@ -7,20 +7,27 @@ async function migrate() {
 
     let pool;
     try {
-        // Use individual connection parameters instead of DATABASE_URL
-        const poolConfig = {
-            user: process.env.DB_USER || 'postgres',
-            host: process.env.DB_HOST || 'localhost',
-            database: process.env.DB_NAME || 'geofaceattend',
-            password: String(process.env.DB_PASSWORD || 'postgres'), // Ensure password is string
-            port: parseInt(process.env.DB_PORT || '5432'),
-        };
+        DATABASE_URL = postgresql://geofaceattend_user:EUUAXZGNo4Dxc6BZMUWiss6wSSyhUHqY@dpg-d6kifj1aae7s73ae34d0-a/attendance_db_shr2
+        let poolConfig;
 
-        console.log('📊 Connecting with:', {
-            ...poolConfig,
-            password: '******' // Hide password in logs
-        });
+        if (process.env.DATABASE_URL) {
+            console.log('📊 Using DATABASE_URL for connection');
+            poolConfig = {
+                connectionString: process.env.DATABASE_URL,
+                ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+            };
+        } else {
+            console.log('📊 Using individual connection parameters');
+            poolConfig = {
+                user: process.env.DB_USER || 'postgres',
+                host: process.env.DB_HOST || 'localhost',
+                database: process.env.DB_NAME || 'geofaceattend',
+                password: String(process.env.DB_PASSWORD || 'postgres'),
+                port: parseInt(process.env.DB_PORT || '5432'),
+            };
+        }
 
+        console.log('🔌 Connecting...');
         pool = new Pool(poolConfig);
 
         // Test connection
@@ -51,10 +58,6 @@ async function migrate() {
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
 
-            -- Create index on emp_id
-            CREATE INDEX IF NOT EXISTS idx_users_emp_id ON users(emp_id);
-            CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-
             -- Attendance table
             CREATE TABLE IF NOT EXISTS attendance (
                 id SERIAL PRIMARY KEY,
@@ -77,9 +80,6 @@ async function migrate() {
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
 
-            CREATE INDEX IF NOT EXISTS idx_attendance_emp_id ON attendance(emp_id);
-            CREATE INDEX IF NOT EXISTS idx_attendance_date ON attendance(date);
-
             -- Leave requests table
             CREATE TABLE IF NOT EXISTS leave_requests (
                 id SERIAL PRIMARY KEY,
@@ -94,13 +94,8 @@ async function migrate() {
                 applied_on TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 approved_by VARCHAR(50),
                 approved_on TIMESTAMP,
-                rejection_reason TEXT,
-                reviewed_by VARCHAR(50),
-                reviewed_at TIMESTAMP
+                rejection_reason TEXT
             );
-
-            CREATE INDEX IF NOT EXISTS idx_leave_emp_id ON leave_requests(emp_id);
-            CREATE INDEX IF NOT EXISTS idx_leave_status ON leave_requests(status);
 
             -- QR codes table
             CREATE TABLE IF NOT EXISTS qr_codes (
@@ -116,13 +111,8 @@ async function migrate() {
                 generated_by VARCHAR(50),
                 generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 expires_at TIMESTAMP,
-                is_active BOOLEAN DEFAULT true,
-                scan_count INTEGER DEFAULT 0,
-                last_scanned TIMESTAMP
+                is_active BOOLEAN DEFAULT true
             );
-
-            CREATE INDEX IF NOT EXISTS idx_qr_id ON qr_codes(qr_id);
-            CREATE INDEX IF NOT EXISTS idx_qr_emp_id ON qr_codes(emp_id);
 
             -- Outstation history table
             CREATE TABLE IF NOT EXISTS outstation_history (
@@ -141,6 +131,13 @@ async function migrate() {
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
 
+            -- Create indexes
+            CREATE INDEX IF NOT EXISTS idx_users_emp_id ON users(emp_id);
+            CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+            CREATE INDEX IF NOT EXISTS idx_attendance_emp_id ON attendance(emp_id);
+            CREATE INDEX IF NOT EXISTS idx_attendance_date ON attendance(date);
+            CREATE INDEX IF NOT EXISTS idx_leave_emp_id ON leave_requests(emp_id);
+            CREATE INDEX IF NOT EXISTS idx_qr_id ON qr_codes(qr_id);
             CREATE INDEX IF NOT EXISTS idx_outstation_emp_id ON outstation_history(emp_id);
         `);
 
