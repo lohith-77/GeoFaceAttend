@@ -1,7 +1,34 @@
+# render.yaml
 services:
+  # Your backend API service - switching to Docker runtime
   - type: web
     name: geofaceattend-api
-    env: node
+    runtime: docker  # This changes it from node to docker
+    repo: https://github.com/lohith-77/GeoFaceAttend
+    branch: main
     rootDir: email-api
-    buildCommand: npm install
-    startCommand: node server.js
+    dockerfilePath: ./Dockerfile
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5001
+      - key: JWT_SECRET
+        sync: false  # You'll be prompted to enter this
+      - key: DATABASE_URL
+        fromDatabase:
+          name: geofaceattend-db
+          property: connectionString
+      - key: EMAIL_USER
+        sync: false
+      - key: EMAIL_PASS
+        sync: false
+      - key: ALLOWED_ORIGINS
+        value: https://geofaceattend-frontend.onrender.com
+
+# Your existing PostgreSQL database (if managed by Render)
+databases:
+  - name: geofaceattend-db
+    plan: free
+    ipAllowList: []  # Allow only private network access
