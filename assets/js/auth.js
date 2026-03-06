@@ -2,7 +2,7 @@
 const selectedRole = localStorage.getItem('selectedRole');
 let currentUser = null;
 
-// Hash password function
+// Hash password function using Utils
 async function hashPassword(password) {
     const encoder = new TextEncoder();
     const data = encoder.encode(password);
@@ -11,15 +11,14 @@ async function hashPassword(password) {
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// Validate email format
+// Validate email using Utils
 function isValidEmail(email) {
-    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return re.test(email);
+    return Utils.isValidEmail(email);
 }
 
-// Validate password strength
+// Validate password using Utils
 function isValidPassword(password) {
-    return password.length >= 6;
+    return Utils.validatePassword(password).isValid;
 }
 
 // Clear error messages
@@ -56,6 +55,7 @@ async function handleLogin() {
 
     const empId = document.getElementById('loginEmpId').value.trim();
     const password = document.getElementById('loginPassword').value;
+    const rememberMe = document.getElementById('rememberMe')?.checked || false;
 
     let hasError = false;
 
@@ -74,26 +74,62 @@ async function handleLogin() {
 
     if (hasError) return;
 
-    // Get users from localStorage
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
+    Utils.showLoading('Verifying credentials...');
 
-    // Hash the input password for comparison
-    const hashedPassword = await hashPassword(password);
-    const user = users.find(u => u.empId === empId && u.password === hashedPassword && u.role === selectedRole);
+    try {
+        // Try API login first
+        const response = await fetch(`${CONFIG.API.URL}/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ empId, password })
+        });
 
-    if (user) {
-        currentUser = user;
-        // Show OTP modal
-        const modal = document.getElementById('otpModal');
-        if (modal) {
+        if (response.ok) {
+            const data = await response.json();
+
+            Utils.setStorage('token', data.token, !rememberMe);
+            Utils.setStorage('currentUser', data.user, !rememberMe);
+
+            if (rememberMe) {
+                Utils.setStorage('rememberedUser', empId);
+            }
+
+            Utils.hideLoading();
+
+            // Show OTP modal
+            const modal = document.getElementById('otpModal');
             modal.style.display = 'flex';
             startOTPTimer();
-            // Clear any previous OTP inputs
-            document.querySelectorAll('.otp-input').forEach(input => input.value = '');
             document.querySelectorAll('.otp-input')[0]?.focus();
+
+            return;
         }
-    } else {
-        alert('Invalid Employee ID or password');
+
+        // Fallback to localStorage
+        const users = JSON.parse(localStorage.getItem('users') || '[]');
+        const hashedPassword = await hashPassword(password);
+        const user = users.find(u => u.empId === empId && u.password === hashedPassword && u.role === selectedRole);
+
+        if (user) {
+            Utils.hideLoading();
+
+            Utils.setStorage('currentUser', user, !rememberMe);
+            if (rememberMe) {
+                Utils.setStorage('rememberedUser', empId);
+            }
+
+            const modal = document.getElementById('otpModal');
+            modal.style.display = 'flex';
+            startOTPTimer();
+            document.querySelectorAll('.otp-input')[0]?.focus();
+        } else {
+            Utils.hideLoading();
+            Utils.showToast('Invalid Employee ID or password', 'error');
+        }
+
+    } catch (error) {
+        Utils.hideLoading();
+        Utils.handleError(error, 'Login failed');
     }
 }
 
@@ -104,8 +140,10 @@ async function handleRegister() {
     const name = document.getElementById('regName').value.trim();
     const email = document.getElementById('regEmail').value.trim();
     const empId = document.getElementById('regEmpId').value.trim();
+    const phone = document.getElementById('regPhone')?.value.trim();
     const password = document.getElementById('regPassword').value;
     const dept = document.getElementById('regDept').value;
+    const joinDate = document.getElementById('regJoinDate')?.value || Utils.formatDate(new Date(), 'iso');
 
     let hasError = false;
 
@@ -127,12 +165,20 @@ async function handleRegister() {
         hasError = true;
     }
 
+    if (phone && !Utils.isValidPhone(phone)) {
+        showError('regPhoneError', 'Invalid phone number format');
+        hasError = true;
+    }
+
     if (!password) {
         showError('regPasswordError', 'Password is required');
         hasError = true;
-    } else if (!isValidPassword(password)) {
-        showError('regPasswordError', 'Password must be at least 6 characters');
-        hasError = true;
+    } else {
+        const passwordCheck = Utils.validatePassword(password);
+        if (!passwordCheck.isValid) {
+            showError('regPasswordError', passwordCheck.messages[0]);
+            hasError = true;
+        }
     }
 
     if (!dept) {
@@ -142,70 +188,65 @@ async function handleRegister() {
 
     if (hasError) return;
 
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
+    Utils.showLoading('Creating account...');
 
-    // Check if user already exists
-    if (users.some(u => u.email === email)) {
-        alert('Email already registered');
-        return;
-    }
+    try {
+        const users = JSON.parse(localStorage.getItem('users') || '[]');
 
-    if (users.some(u => u.empId === empId)) {
-        alert('Employee ID already exists');
-        return;
-    }
+        if (users.some(u => u.email === email)) {
+            Utils.hideLoading();
+            Utils.showToast('Email already registered', 'error');
+            return;
+        }
 
-    // Hash password before storing
-    const hashedPassword = await hashPassword(password);
+        if (users.some(u => u.empId === empId)) {
+            Utils.hideLoading();
+            Utils.showToast('Employee ID already exists', 'error');
+            return;
+        }
 
-    // Create new user
-    const newUser = {
-        id: Date.now().toString(),
-        name,
-        email,
-        empId,
-        password: hashedPassword,
-        department: dept,
-        role: selectedRole,
-        createdAt: new Date().toISOString()
-    };
+        const hashedPassword = await hashPassword(password);
 
-    users.push(newUser);
-    localStorage.setItem('users', JSON.stringify(users));
+        const newUser = {
+            id: Date.now().toString(),
+            name,
+            email,
+            empId,
+            phone,
+            password: hashedPassword,
+            department: dept,
+            joinDate,
+            role: selectedRole,
+            createdAt: new Date().toISOString(),
+            leaveBalance: CONFIG.LEAVE.DEFAULT_BALANCE
+        };
 
-    currentUser = newUser;
+        users.push(newUser);
+        localStorage.setItem('users', JSON.stringify(users));
 
-    // Show OTP modal
-    const modal = document.getElementById('otpModal');
-    if (modal) {
+        Utils.setStorage('currentUser', newUser, true);
+
+        Utils.hideLoading();
+
+        const modal = document.getElementById('otpModal');
         modal.style.display = 'flex';
         startOTPTimer();
-        // Clear any previous OTP inputs
-        document.querySelectorAll('.otp-input').forEach(input => input.value = '');
         document.querySelectorAll('.otp-input')[0]?.focus();
+
+        if (window.emailService) {
+            emailService.sendWelcomeEmail(email, name, empId, dept);
+        }
+
+    } catch (error) {
+        Utils.hideLoading();
+        Utils.handleError(error, 'Registration failed');
     }
 }
 
-// OTP input handling
-function moveToNext(input, index) {
-    if (input.value.length === 1) {
-        const next = document.querySelectorAll('.otp-input')[index + 1];
-        if (next) next.focus();
-    }
-}
-
-// Allow only numbers in OTP
-function allowOnlyNumbers(event) {
-    const charCode = event.which ? event.which : event.keyCode;
-    if (charCode < 48 || charCode > 57) {
-        event.preventDefault();
-    }
-}
-
-// OTP Timer
+// OTP Functions
 let otpTimer;
+
 function startOTPTimer() {
-    // Clear any existing timer
     if (otpTimer) clearInterval(otpTimer);
 
     let timeLeft = 120;
@@ -231,45 +272,61 @@ function startOTPTimer() {
     }, 1000);
 }
 
-// Resend OTP
+function moveToNext(input, index) {
+    if (input.value.length === 1) {
+        const next = document.querySelectorAll('.otp-input')[index + 1];
+        if (next) next.focus();
+    }
+}
+
+function allowOnlyNumbers(event) {
+    const charCode = event.which ? event.which : event.keyCode;
+    if (charCode < 48 || charCode > 57) {
+        event.preventDefault();
+    }
+}
+
 function resendOTP() {
-    alert('OTP has been resent to your email (Demo: 123456)');
+    Utils.showToast('OTP resent to your email (Demo: 123456)', 'info');
     startOTPTimer();
     document.querySelectorAll('.otp-input').forEach(input => input.value = '');
     document.querySelectorAll('.otp-input')[0]?.focus();
 }
 
-// Verify OTP
 function verifyOTP() {
     const digits = document.querySelectorAll('.otp-input');
     const otp = Array.from(digits).map(d => d.value).join('');
 
     if (otp === '123456') {
-        // Store current user in localStorage for session
-        localStorage.setItem('currentUser', JSON.stringify(currentUser));
+        Utils.showLoading('Verifying OTP...');
 
-        // Close modal
-        const modal = document.getElementById('otpModal');
-        if (modal) modal.style.display = 'none';
+        setTimeout(() => {
+            const modal = document.getElementById('otpModal');
+            modal.style.display = 'none';
 
-        // Clear OTP inputs
-        document.querySelectorAll('.otp-input').forEach(input => input.value = '');
+            document.querySelectorAll('.otp-input').forEach(input => input.value = '');
 
-        // Clear timer
-        if (otpTimer) clearInterval(otpTimer);
+            if (otpTimer) clearInterval(otpTimer);
 
-        // Redirect based on role
-        if (selectedRole === 'admin') {
-            window.location.href = 'admin/dashboard.html';
-        } else {
-            window.location.href = 'employee/dashboard.html';
-        }
+            Utils.hideLoading();
+            Utils.showToast('Login successful!', 'success');
+
+            if (selectedRole === 'admin') {
+                window.location.href = 'admin/dashboard.html';
+            } else {
+                window.location.href = 'employee/dashboard.html';
+            }
+        }, 1500);
     } else {
-        alert('Invalid OTP. Please use 123456');
-        // Clear inputs
+        Utils.showToast('Invalid OTP. Please use 123456', 'error');
         document.querySelectorAll('.otp-input').forEach(input => input.value = '');
         document.querySelectorAll('.otp-input')[0]?.focus();
     }
+}
+
+function closeOTPModal() {
+    document.getElementById('otpModal').style.display = 'none';
+    if (otpTimer) clearInterval(otpTimer);
 }
 
 // Make functions global
@@ -278,6 +335,7 @@ window.handleRegister = handleRegister;
 window.moveToNext = moveToNext;
 window.verifyOTP = verifyOTP;
 window.resendOTP = resendOTP;
+window.closeOTPModal = closeOTPModal;
 window.allowOnlyNumbers = allowOnlyNumbers;
 
 // Close modal when clicking outside
@@ -285,14 +343,11 @@ window.onclick = function (event) {
     const modal = document.getElementById('otpModal');
     if (event.target === modal) {
         modal.style.display = 'none';
-        // Clear inputs
-        document.querySelectorAll('.otp-input').forEach(input => input.value = '');
-        // Clear timer
         if (otpTimer) clearInterval(otpTimer);
     }
 };
 
-// Create default users
+// Create default users on load
 async function createDefaultUsers() {
     const users = JSON.parse(localStorage.getItem('users') || '[]');
 
@@ -306,6 +361,8 @@ async function createDefaultUsers() {
                 password: await hashPassword('admin123'),
                 department: 'Management',
                 role: 'admin',
+                joinDate: Utils.formatDate(new Date(), 'iso'),
+                leaveBalance: CONFIG.LEAVE.DEFAULT_BALANCE,
                 createdAt: new Date().toISOString()
             },
             {
@@ -316,24 +373,32 @@ async function createDefaultUsers() {
                 password: await hashPassword('emp123'),
                 department: 'Engineering',
                 role: 'employee',
+                joinDate: Utils.formatDate(new Date(), 'iso'),
+                leaveBalance: CONFIG.LEAVE.DEFAULT_BALANCE,
                 createdAt: new Date().toISOString()
             }
         ];
 
         localStorage.setItem('users', JSON.stringify(defaultUsers));
-        console.log('✅ GeoFaceAttend - Default users created!');
-        console.log('Admin - Employee ID: ADM001, Password: admin123');
-        console.log('Employee - Employee ID: EMP001, Password: emp123');
+        console.log('✅ Default users created!');
+        console.log('Admin - ID: ADM001, Password: admin123');
+        console.log('Employee - ID: EMP001, Password: emp123');
     }
 }
 
-// Create default users on page load
-createDefaultUsers();
-
-// Also run when DOM is fully loaded
+// Initialize on load
 document.addEventListener('DOMContentLoaded', function () {
-    // Ensure modal is hidden initially
     const modal = document.getElementById('otpModal');
     if (modal) modal.style.display = 'none';
-    console.log('✅ GeoFaceAttend - Auth.js loaded');
+
+    createDefaultUsers();
+
+    // Check for remembered user
+    const remembered = Utils.getStorage('rememberedUser');
+    if (remembered) {
+        document.getElementById('loginEmpId').value = remembered;
+        document.getElementById('rememberMe').checked = true;
+    }
+
+    console.log('✅ Auth.js loaded with Utils');
 });

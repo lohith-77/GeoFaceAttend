@@ -1,203 +1,404 @@
-// Email Service for Notifications
+// Email Service for Gmail Notifications
 class EmailService {
     constructor() {
-        this.notificationTemplates = new Map();
-        // Auto-detect environment - works locally and in production
+        // Auto-detect environment
         this.apiUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-            ? 'http://localhost:5001'  // Local development
-            : 'https://geofaceattend-api.onrender.com'; // Your live backend URL on Render
+            ? 'http://localhost:5001'
+            : 'https://geofaceattend.onrender.com';
+
         this.initializeTemplates();
-        console.log('📧 Email Service initialized with API URL:', this.apiUrl);
+        console.log('📧 Email Service initialized with Gmail');
+        console.log('📡 API URL:', this.apiUrl);
     }
 
-    // Initialize email templates with exact format
+    // Initialize email templates
     initializeTemplates() {
-        // Leave Approval Template
-        this.notificationTemplates.set('leave-approved', {
-            subject: 'LEAVE UPDATE: Approved',
-            template: (data) => `ADMIN to me\n\nA message by has been received. Kindly respond at your earliest convenience.\n\n---\n\nADMIN\nHello, ${data.employeeName}, Your leave request for ${data.startDate} to ${data.endDate} (${data.duration} days) has been Approved.\nBest regards, ADMIN.\n\n---\n\n[Reply] [Forward]`
-        });
+        this.templates = {
+            'leave-approved': {
+                subject: '✅ LEAVE APPROVED - GeoFaceAttend',
+                template: (data) => `Hello ${data.employeeName},
 
-        // Leave Rejection Template
-        this.notificationTemplates.set('leave-rejected', {
-            subject: 'LEAVE UPDATE: Rejected',
-            template: (data) => `ADMIN to me\n\nA message by has been received. Kindly respond at your earliest convenience.\n\n---\n\nADMIN\nHello, ${data.employeeName}, Your leave request for ${data.startDate} to ${data.endDate} (${data.duration} days) has been Rejected.\nReason: ${data.reason}\nBest regards, ADMIN.\n\n---\n\n[Reply] [Forward]`
-        });
+Your leave request has been APPROVED.
 
-        // Leave Request Template
-        this.notificationTemplates.set('leave-request', {
-            subject: 'LEAVE REQUEST: Pending Approval',
-            template: (data) => `EMPLOYEE to ADMIN\n\nA message by has been received. Kindly respond at your earliest convenience.\n\n---\n\nEMPLOYEE\nHello Admin, I have submitted a leave request.\nName: ${data.employeeName}\nType: ${data.leaveType}\nFrom: ${data.startDate}\nTo: ${data.endDate}\nReason: ${data.reason}\nPlease approve.\nBest regards, ${data.employeeName}.\n\n---\n\n[Reply] [Forward]`
-        });
+━━━━━━━━━━━━━━━━━━━━━━
+📅 From: ${data.startDate}
+📅 To: ${data.endDate}
+📊 Duration: ${data.duration} days
+📝 Type: ${data.leaveType}
+━━━━━━━━━━━━━━━━━━━━━━
 
-        // Attendance Reminder Template
-        this.notificationTemplates.set('attendance-reminder', {
-            subject: 'REMINDER: Mark Attendance',
-            template: (data) => `SYSTEM to ${data.employeeName}\n\nA message by has been received. Kindly respond at your earliest convenience.\n\n---\n\nSYSTEM\nHello, ${data.employeeName}, Don't forget to mark your attendance for today.\nCurrent Time: ${data.currentTime}\nBest regards, GeoFaceAttend.\n\n---\n\n[Reply] [Forward]`
-        });
+Best regards,
+GeoFaceAttend Team`
+            },
+
+            'leave-rejected': {
+                subject: '❌ LEAVE REJECTED - GeoFaceAttend',
+                template: (data) => `Hello ${data.employeeName},
+
+Your leave request has been REJECTED.
+
+━━━━━━━━━━━━━━━━━━━━━━
+📅 From: ${data.startDate}
+📅 To: ${data.endDate}
+📊 Duration: ${data.duration} days
+📝 Type: ${data.leaveType}
+❌ Reason: ${data.reason}
+━━━━━━━━━━━━━━━━━━━━━━
+
+Please contact your manager for more information.
+
+Best regards,
+GeoFaceAttend Team`
+            },
+
+            'leave-request': {
+                subject: '📋 NEW LEAVE REQUEST - Pending Approval',
+                template: (data) => `Hello Admin,
+
+A new leave request has been submitted and requires your approval.
+
+━━━━━━━━━━━━━━━━━━━━━━
+👤 Employee: ${data.employeeName}
+📝 Type: ${data.leaveType}
+📅 From: ${data.startDate}
+📅 To: ${data.endDate}
+📊 Days: ${data.duration}
+📋 Reason: ${data.reason}
+━━━━━━━━━━━━━━━━━━━━━━
+
+Please review and take action in the admin dashboard.
+
+Best regards,
+GeoFaceAttend System`
+            },
+
+            'welcome': {
+                subject: '🎉 Welcome to GeoFaceAttend!',
+                template: (data) => `Welcome ${data.name}!
+
+Your account has been created successfully.
+
+━━━━━━━━━━━━━━━━━━━━━━
+📋 Employee ID: ${data.empId}
+🏢 Department: ${data.department}
+━━━━━━━━━━━━━━━━━━━━━━
+
+Login here: ${window.location.origin}/auth.html
+
+Best regards,
+GeoFaceAttend Team`
+            },
+
+            'password-reset': {
+                subject: '🔐 Password Reset - GeoFaceAttend',
+                template: (data) => `Hello ${data.name},
+
+Your password has been reset.
+
+━━━━━━━━━━━━━━━━━━━━━━
+🔑 Temporary Password: ${data.tempPassword}
+━━━━━━━━━━━━━━━━━━━━━━
+
+Please login and change your password immediately.
+
+Login here: ${window.location.origin}/auth.html
+
+Best regards,
+GeoFaceAttend Team`
+            },
+
+            'attendance-reminder': {
+                subject: '⏰ Attendance Reminder - GeoFaceAttend',
+                template: (data) => `Hello ${data.employeeName},
+
+Don't forget to mark your attendance for today!
+
+━━━━━━━━━━━━━━━━━━━━━━
+📅 Date: ${data.currentDate}
+⏰ Time: ${data.currentTime}
+━━━━━━━━━━━━━━━━━━━━━━
+
+Click here to mark attendance: ${window.location.origin}/employee/dashboard.html
+
+Best regards,
+GeoFaceAttend Team`
+            },
+
+            'checkin-confirmation': {
+                subject: '✅ Check-In Confirmed - GeoFaceAttend',
+                template: (data) => `Hello ${data.employeeName},
+
+You have successfully checked in.
+
+━━━━━━━━━━━━━━━━━━━━━━
+📍 Location: ${data.location}
+⏰ Time: ${data.time}
+📅 Date: ${data.date}
+📊 Method: ${data.method}
+━━━━━━━━━━━━━━━━━━━━━━
+
+Have a great day!
+
+Best regards,
+GeoFaceAttend Team`
+            },
+
+            'checkout-confirmation': {
+                subject: '👋 Check-Out Confirmed - GeoFaceAttend',
+                template: (data) => `Hello ${data.employeeName},
+
+You have successfully checked out.
+
+━━━━━━━━━━━━━━━━━━━━━━
+📍 Location: ${data.location}
+⏰ Check-In: ${data.checkInTime}
+⏰ Check-Out: ${data.time}
+⏱️ Hours Worked: ${data.hoursWorked}
+📅 Date: ${data.date}
+━━━━━━━━━━━━━━━━━━━━━━
+
+Thank you for your work today!
+
+Best regards,
+GeoFaceAttend Team`
+            },
+
+            'qr-generated': {
+                subject: '📱 Outstation QR Code - GeoFaceAttend',
+                template: (data) => `Hello ${data.employeeName},
+
+Your outstation QR code has been generated.
+
+━━━━━━━━━━━━━━━━━━━━━━
+📍 Location: ${data.location}
+📅 Valid From: ${data.startDate}
+📅 Valid To: ${data.endDate}
+📋 Purpose: ${data.purpose}
+━━━━━━━━━━━━━━━━━━━━━━
+
+Please check your dashboard to view and download the QR code.
+
+Best regards,
+GeoFaceAttend Team`
+            },
+
+            'monthly-report': {
+                subject: '📊 Monthly Attendance Report - GeoFaceAttend',
+                template: (data) => `Hello ${data.employeeName},
+
+Here's your attendance summary for ${data.month}.
+
+━━━━━━━━━━━━━━━━━━━━━━
+📈 Present Days: ${data.present}
+⚠️ Late Days: ${data.late}
+🏖️ Leave Days: ${data.leave}
+📍 Outstation Days: ${data.outstation}
+⏱️ Total Hours: ${data.totalHours}
+━━━━━━━━━━━━━━━━━━━━━━
+
+Detailed report is available in your dashboard.
+
+Best regards,
+GeoFaceAttend Team`
+            }
+        };
     }
 
-    // Send REAL email via API
-    async sendRealEmail(to, subject, body) {
+    // Send email via backend API
+    async sendEmail(to, subject, text) {
         try {
-            console.log('📧 Sending real email to:', to);
-            console.log('📡 Using API URL:', this.apiUrl);
+            const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+
+            if (!token) {
+                console.warn('No auth token found, storing email locally');
+                this.storeEmail({ to, subject, text, timestamp: new Date().toISOString() });
+                return false;
+            }
 
             const response = await fetch(`${this.apiUrl}/send-email`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({
-                    to: to,
-                    subject: subject,
-                    text: body
-                })
+                body: JSON.stringify({ to, subject, text })
             });
 
             const result = await response.json();
 
-            if (result.success) {
-                console.log('✅ Real email sent successfully!', result.messageId);
+            if (response.ok && result.success) {
+                console.log('✅ Email sent successfully:', subject);
 
-                // Also store in localStorage for inbox
+                // Store in inbox
                 this.storeEmail({
                     to,
                     subject,
-                    content: body,
-                    timestamp: new Date().toLocaleString(),
-                    read: false
+                    text,
+                    timestamp: new Date().toISOString(),
+                    success: true
                 });
+
+                // Show notification
+                if (window.notificationSystem) {
+                    notificationSystem.show({
+                        title: '📧 Email Sent',
+                        message: subject,
+                        type: 'success'
+                    });
+                }
 
                 return true;
             } else {
-                console.error('❌ Email sending failed:', result.error);
+                console.error('❌ Email failed:', result.error);
+
+                // Store failed email for retry
+                this.storeEmail({
+                    to,
+                    subject,
+                    text,
+                    timestamp: new Date().toISOString(),
+                    failed: true,
+                    error: result.error
+                });
+
                 return false;
             }
         } catch (error) {
-            console.error('❌ Email API error:', error);
-            return false;
-        }
-    }
+            console.error('❌ Email error:', error);
 
-    // Send email using templates
-    async sendEmail(to, type, data) {
-        const template = this.notificationTemplates.get(type);
-        if (!template) {
-            console.error('Template not found:', type);
-            return false;
-        }
-
-        const emailContent = template.template(data);
-        console.log('📨 Email content prepared for:', type);
-
-        // Try to send real email first
-        const sent = await this.sendRealEmail(to, template.subject, emailContent);
-
-        if (!sent) {
-            // Fallback to localStorage only
-            console.log('📧 Using fallback - storing in localStorage only');
+            // Store offline email for later sync
             this.storeEmail({
                 to,
-                subject: template.subject,
-                content: emailContent,
-                timestamp: new Date().toLocaleString(),
-                read: false
+                subject,
+                text,
+                timestamp: new Date().toISOString(),
+                offline: true
             });
-        }
 
-        // Show notification
-        if (window.notificationSystem) {
-            notificationSystem.show({
-                title: `📧 ${template.subject}`,
-                message: emailContent.split('\n')[0] + '...',
-                type: 'info'
-            });
-        }
+            // Show offline notification
+            if (window.notificationSystem) {
+                notificationSystem.show({
+                    title: '📧 Email Queued',
+                    message: 'Will send when online',
+                    type: 'info'
+                });
+            }
 
-        return true;
+            return false;
+        }
     }
 
-    // Store email in localStorage
+    // Send template-based email
+    async sendTemplateEmail(to, templateName, data) {
+        const template = this.templates[templateName];
+        if (!template) {
+            console.error('Template not found:', templateName);
+            return false;
+        }
+
+        const text = template.template(data);
+        return this.sendEmail(to, template.subject, text);
+    }
+
+    // Store email in localStorage (for inbox)
     storeEmail(email) {
         const emails = JSON.parse(localStorage.getItem('emails') || '[]');
-        emails.unshift(email);
-        localStorage.setItem('emails', JSON.stringify(emails.slice(0, 50))); // Keep last 50
+        emails.unshift({
+            ...email,
+            id: Date.now(),
+            read: false
+        });
+
+        // Keep only last 50 emails
+        localStorage.setItem('emails', JSON.stringify(emails.slice(0, 50)));
     }
 
-    // Get all emails
+    // Get all emails from inbox
     getEmails() {
         return JSON.parse(localStorage.getItem('emails') || '[]');
     }
 
     // Mark email as read
-    markAsRead(index) {
+    markAsRead(emailId) {
         const emails = this.getEmails();
-        if (emails[index]) {
-            emails[index].read = true;
+        const email = emails.find(e => e.id === emailId);
+        if (email) {
+            email.read = true;
             localStorage.setItem('emails', JSON.stringify(emails));
         }
     }
 
-    // Send leave request notification to admin
-    async notifyAdminLeaveRequest(adminEmail, leaveData) {
-        // Get current user token
-        const token = localStorage.getItem('token');
-        if (!token) {
-            console.error('No authentication token found');
-            return false;
-        }
+    // Delete email
+    deleteEmail(emailId) {
+        const emails = this.getEmails().filter(e => e.id !== emailId);
+        localStorage.setItem('emails', JSON.stringify(emails));
+    }
 
-        return this.sendEmail(adminEmail, 'leave-request', {
-            employeeName: leaveData.employeeName,
-            leaveType: leaveData.type,
-            startDate: leaveData.startDate,
-            endDate: leaveData.endDate,
-            reason: leaveData.reason
+    // Convenience methods for common notifications
+    async sendLeaveApproval(employeeEmail, leaveData) {
+        return this.sendTemplateEmail(employeeEmail, 'leave-approved', leaveData);
+    }
+
+    async sendLeaveRejection(employeeEmail, leaveData, reason) {
+        return this.sendTemplateEmail(employeeEmail, 'leave-rejected', { ...leaveData, reason });
+    }
+
+    async sendLeaveRequest(adminEmail, leaveData) {
+        return this.sendTemplateEmail(adminEmail, 'leave-request', leaveData);
+    }
+
+    async sendWelcomeEmail(email, name, empId, department) {
+        return this.sendTemplateEmail(email, 'welcome', { name, empId, department });
+    }
+
+    async sendPasswordReset(email, name, tempPassword) {
+        return this.sendTemplateEmail(email, 'password-reset', { name, tempPassword });
+    }
+
+    async sendAttendanceReminder(employeeEmail, employeeName) {
+        const now = new Date();
+        return this.sendTemplateEmail(employeeEmail, 'attendance-reminder', {
+            employeeName,
+            currentDate: now.toLocaleDateString(),
+            currentTime: now.toLocaleTimeString()
         });
     }
 
-    // Send leave approval to employee
-    async notifyEmployeeLeaveApproval(employeeEmail, leaveData) {
-        const start = new Date(leaveData.startDate);
-        const end = new Date(leaveData.endDate);
-        const diffTime = Math.abs(end - start);
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-
-        return this.sendEmail(employeeEmail, 'leave-approved', {
-            employeeName: leaveData.employeeName,
-            startDate: leaveData.startDate,
-            endDate: leaveData.endDate,
-            duration: diffDays
-        });
+    async sendCheckInConfirmation(email, checkInData) {
+        return this.sendTemplateEmail(email, 'checkin-confirmation', checkInData);
     }
 
-    // Send leave rejection to employee
-    async notifyEmployeeLeaveRejection(employeeEmail, leaveData, reason) {
-        const start = new Date(leaveData.startDate);
-        const end = new Date(leaveData.endDate);
-        const diffTime = Math.abs(end - start);
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-
-        return this.sendEmail(employeeEmail, 'leave-rejected', {
-            employeeName: leaveData.employeeName,
-            startDate: leaveData.startDate,
-            endDate: leaveData.endDate,
-            duration: diffDays,
-            reason: reason
-        });
+    async sendCheckOutConfirmation(email, checkOutData) {
+        return this.sendTemplateEmail(email, 'checkout-confirmation', checkOutData);
     }
 
-    // Test email function (for debugging)
-    async sendTestEmail(to = 'test@example.com') {
-        const testBody = `TEST EMAIL\n\nThis is a test email from GeoFaceAttend.\n\nTime: ${new Date().toLocaleString()}`;
-        return this.sendRealEmail(to, 'Test from GeoFaceAttend', testBody);
+    async sendQRCode(email, qrData) {
+        return this.sendTemplateEmail(email, 'qr-generated', qrData);
+    }
+
+    async sendMonthlyReport(email, reportData) {
+        return this.sendTemplateEmail(email, 'monthly-report', reportData);
+    }
+
+    // Test email function
+    async sendTestEmail(to = 'lohith7780@gmail.com') {
+        return this.sendEmail(
+            to,
+            '🧪 Test Email from GeoFaceAttend',
+            `This is a test email to verify Gmail integration is working correctly.
+
+Sent at: ${new Date().toLocaleString()}
+
+If you received this, your email setup is working! 🎉
+
+Best regards,
+GeoFaceAttend Team`
+        );
     }
 }
 
-// Initialize email service
+// Create global instance
 const emailService = new EmailService();
 window.emailService = emailService;
 
-console.log('✅ GeoFaceAttend - Email Service loaded');
+console.log('✅ GeoFaceAttend - Gmail Email Service loaded');

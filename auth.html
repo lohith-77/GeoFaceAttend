@@ -11,6 +11,7 @@
 
     <!-- PWA Support -->
     <link rel="manifest" href="/manifest.json">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="GeoFaceAttend">
@@ -44,8 +45,101 @@
             backdrop-filter: blur(4px);
         }
 
-        .modal.show {
+        .modal-content {
+            background: var(--card-bg);
+            border-radius: 24px;
+            padding: 40px;
+            max-width: 450px;
+            width: 90%;
+            animation: scaleIn 0.3s ease;
+            border: 1px solid var(--border-color);
+            position: relative;
+        }
+
+        @keyframes scaleIn {
+            from {
+                transform: scale(0.9);
+                opacity: 0;
+            }
+
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .modal-header h3 {
+            font-size: 24px;
+            margin-bottom: 10px;
+            color: var(--text-primary);
+        }
+
+        .modal-header p {
+            color: var(--text-muted);
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--text-muted);
+            position: absolute;
+            top: 20px;
+            right: 20px;
+        }
+
+        .otp-container {
             display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .otp-input {
+            width: 50px;
+            height: 60px;
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            text-align: center;
+            font-size: 24px;
+            font-weight: 600;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        .otp-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .otp-timer {
+            text-align: center;
+            margin-bottom: 20px;
+            color: var(--text-muted);
+        }
+
+        .otp-timer span {
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .otp-timer button {
+            background: none;
+            border: none;
+            color: var(--primary);
+            cursor: pointer;
+            margin-left: 10px;
+        }
+
+        .otp-timer button:disabled {
+            color: var(--text-muted);
+            cursor: not-allowed;
         }
 
         .demo-note {
@@ -58,9 +152,69 @@
             border-radius: 8px;
         }
 
-        .demo-note strong {
-            color: var(--primary);
-            font-size: 14px;
+        .password-strength {
+            margin-top: 5px;
+            height: 4px;
+            background: var(--border-color);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .strength-bar {
+            height: 100%;
+            width: 0;
+            transition: width 0.3s, background 0.3s;
+        }
+
+        .strength-bar.weak {
+            width: 33.33%;
+            background: #ef4444;
+        }
+
+        .strength-bar.medium {
+            width: 66.66%;
+            background: #f59e0b;
+        }
+
+        .strength-bar.strong {
+            width: 100%;
+            background: #10b981;
+        }
+
+        .role-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+
+        .role-badge.employee {
+            background: rgba(16, 185, 129, 0.15);
+            color: #10b981;
+        }
+
+        .role-badge.admin {
+            background: rgba(67, 97, 238, 0.15);
+            color: #4361ee;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
         }
     </style>
 </head>
@@ -78,6 +232,9 @@
                 </div>
             </div>
 
+            <!-- Role Display -->
+            <div class="role-badge" id="roleDisplay">Employee Portal</div>
+
             <!-- Login Form -->
             <div id="loginForm" class="auth-form active">
                 <h3>Welcome Back</h3>
@@ -85,22 +242,17 @@
 
                 <div class="form-group">
                     <label><i class="fas fa-id-card"></i> Employee ID</label>
-                    <input type="text" id="loginEmpId" placeholder="Enter your employee ID">
+                    <input type="text" id="loginEmpId" placeholder="Enter your employee ID" value="ADM001">
                     <small class="error-message" id="loginEmpIdError"></small>
                 </div>
 
                 <div class="form-group">
                     <label><i class="fas fa-lock"></i> Password</label>
-                    <input type="password" id="loginPassword" placeholder="Enter your password">
+                    <input type="password" id="loginPassword" placeholder="Enter your password" value="admin123">
                     <small class="error-message" id="loginPasswordError"></small>
                 </div>
 
-                <div style="text-align: right; margin-bottom: 15px;">
-                    <a href="#" onclick="forgotPassword()" style="color: var(--primary); font-size: 13px;">Forgot
-                        Password?</a>
-                </div>
-
-                <button onclick="handleLogin()" class="btn-primary btn-block">
+                <button onclick="handleLogin()" class="btn-primary btn-block" id="loginBtn">
                     <i class="fas fa-paper-plane"></i> Login & Send OTP
                 </button>
 
@@ -134,8 +286,11 @@
                 </div>
 
                 <div class="form-group">
-                    <label><i class="fas fa-lock"></i> Password</label>
-                    <input type="password" id="regPassword" placeholder="Create a password (min. 6 characters)">
+                    <label><i class="fas fa-lock"></i> Password (min. 6 characters)</label>
+                    <input type="password" id="regPassword" placeholder="Create a password">
+                    <div class="password-strength">
+                        <div class="strength-bar" id="passwordStrength"></div>
+                    </div>
                     <small class="error-message" id="regPasswordError"></small>
                 </div>
 
@@ -153,7 +308,7 @@
                     <small class="error-message" id="regDeptError"></small>
                 </div>
 
-                <button onclick="handleRegister()" class="btn-primary btn-block">
+                <button onclick="handleRegister()" class="btn-primary btn-block" id="registerBtn">
                     <i class="fas fa-user-plus"></i> Register & Send OTP
                 </button>
 
@@ -168,6 +323,7 @@
     <!-- OTP Modal -->
     <div id="otpModal" class="modal">
         <div class="modal-content">
+            <button class="modal-close" onclick="closeOTPModal()">&times;</button>
             <div class="modal-header">
                 <h3><i class="fas fa-shield-alt"></i> Email Verification</h3>
                 <p>Enter the 6-digit code sent to your email</p>
@@ -193,7 +349,7 @@
                 <button onclick="resendOTP()" id="resendBtn" disabled>Resend Code</button>
             </div>
 
-            <button onclick="verifyOTP()" class="btn-primary btn-block">
+            <button onclick="verifyOTP()" class="btn-primary btn-block" id="verifyBtn">
                 <i class="fas fa-check"></i> Verify & Continue
             </button>
 
@@ -201,57 +357,251 @@
         </div>
     </div>
 
-    <script src="assets/js/auth.js"></script>
-    <script src="assets/js/email-service.js"></script>
-
-    <!-- Register Service Worker -->
     <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
-                    .then(registration => {
-                        console.log('✅ Service Worker registered:', registration.scope);
-                    })
-                    .catch(error => {
-                        console.log('❌ Service Worker registration failed:', error);
-                    });
-            });
+        // Configuration
+        const API_URL = 'http://localhost:5001';
+        let otpTimer = null;
 
-            window.addEventListener('online', () => {
-                document.body.classList.remove('offline');
-            });
+        // Get selected role from localStorage
+        const selectedRole = localStorage.getItem('selectedRole') || 'employee';
+        document.getElementById('roleDisplay').textContent = selectedRole === 'admin' ? 'Admin Portal' : 'Employee Portal';
+        document.getElementById('roleDisplay').className = `role-badge ${selectedRole}`;
 
-            window.addEventListener('offline', () => {
-                document.body.classList.add('offline');
-            });
+        // Password strength indicator
+        document.getElementById('regPassword')?.addEventListener('input', function (e) {
+            const password = e.target.value;
+            const strengthBar = document.getElementById('passwordStrength');
+            if (strengthBar) {
+                if (password.length < 6) {
+                    strengthBar.className = 'strength-bar weak';
+                } else if (password.length < 8) {
+                    strengthBar.className = 'strength-bar medium';
+                } else {
+                    strengthBar.className = 'strength-bar strong';
+                }
+            }
+        });
+
+        // Show/hide forms
+        function showLogin() {
+            document.getElementById('loginForm').classList.add('active');
+            document.getElementById('registerForm').classList.remove('active');
+            clearErrors();
         }
 
-        // Forgot Password Function
-        async function forgotPassword() {
-            const empId = prompt("Enter your Employee ID:");
-            if (!empId) return;
+        function showRegister() {
+            document.getElementById('registerForm').classList.add('active');
+            document.getElementById('loginForm').classList.remove('active');
+            clearErrors();
+        }
 
-            const users = JSON.parse(localStorage.getItem('users') || '[]');
-            const user = users.find(u => u.empId === empId);
+        function clearErrors() {
+            document.querySelectorAll('.error-message').forEach(el => el.textContent = '');
+        }
 
-            if (user) {
-                const tempPassword = Math.random().toString(36).slice(-8);
-                user.password = tempPassword; // In production, hash this
-                localStorage.setItem('users', JSON.stringify(users));
+        // Login function
+        async function handleLogin() {
+            const empId = document.getElementById('loginEmpId').value.trim();
+            const password = document.getElementById('loginPassword').value;
+            const loginBtn = document.getElementById('loginBtn');
 
-                if (window.emailService) {
-                    const subject = '🔐 Password Reset - GeoFaceAttend';
-                    const body = `GEOFACEATTEND to ${user.name}\n\nA message by has been received. Kindly respond at your earliest convenience.\n\n---\n\nGEOFACEATTEND\nHello ${user.name},\n\nYour temporary password is: ${tempPassword}\n\nPlease login and change your password immediately.\n\nBest regards,\nGeoFaceAttend Team\n\n---\n\n[Reply] [Forward]`;
+            if (!empId || !password) {
+                alert('Please enter both Employee ID and Password');
+                return;
+            }
 
-                    await emailService.sendRealEmail(user.email, subject, body);
-                    alert('✅ Temporary password sent to your email!');
+            // Disable button and show loading
+            loginBtn.disabled = true;
+            loginBtn.innerHTML = '<span class="loading-spinner"></span> Logging in...';
+
+            try {
+                console.log('Attempting login with:', { empId, password });
+
+                const response = await fetch(`${API_URL}/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ empId, password })
+                });
+
+                const data = await response.json();
+                console.log('Login response:', data);
+
+                if (data.success) {
+                    // Store user data
+                    sessionStorage.setItem('token', data.token);
+                    sessionStorage.setItem('currentUser', JSON.stringify(data.user));
+
+                    // Show OTP modal
+                    document.getElementById('otpModal').style.display = 'flex';
+                    startOTPTimer();
+
+                    // Clear any previous OTP inputs
+                    document.querySelectorAll('.otp-input').forEach(input => input.value = '');
+                    document.querySelectorAll('.otp-input')[0]?.focus();
+                } else {
+                    alert('Invalid credentials. Try ADM001/admin123 or EMP001/emp123');
                 }
-            } else {
-                alert('❌ Employee ID not found!');
+            } catch (error) {
+                console.error('Login error:', error);
+                alert('Cannot connect to server. Make sure backend is running on port 5001');
+            } finally {
+                // Restore button
+                loginBtn.disabled = false;
+                loginBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Login & Send OTP';
             }
         }
+
+        // Register function
+        async function handleRegister() {
+            const name = document.getElementById('regName').value.trim();
+            const email = document.getElementById('regEmail').value.trim();
+            const empId = document.getElementById('regEmpId').value.trim();
+            const password = document.getElementById('regPassword').value;
+            const dept = document.getElementById('regDept').value;
+            const registerBtn = document.getElementById('registerBtn');
+
+            if (!name || !email || !empId || !password || !dept) {
+                alert('Please fill all fields');
+                return;
+            }
+
+            if (password.length < 6) {
+                alert('Password must be at least 6 characters');
+                return;
+            }
+
+            registerBtn.disabled = true;
+            registerBtn.innerHTML = '<span class="loading-spinner"></span> Registering...';
+
+            try {
+                const response = await fetch(`${API_URL}/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name,
+                        email,
+                        empId,
+                        password,
+                        department: dept
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert('Registration successful! Please login.');
+                    showLogin();
+                } else {
+                    alert(data.error || 'Registration failed');
+                }
+            } catch (error) {
+                console.error('Registration error:', error);
+                alert('Cannot connect to server');
+            } finally {
+                registerBtn.disabled = false;
+                registerBtn.innerHTML = '<i class="fas fa-user-plus"></i> Register & Send OTP';
+            }
+        }
+
+        // OTP Functions
+        function startOTPTimer() {
+            if (otpTimer) clearInterval(otpTimer);
+
+            let timeLeft = 120;
+            const timerDisplay = document.getElementById('otpTimer');
+            const resendBtn = document.getElementById('resendBtn');
+
+            if (timerDisplay) timerDisplay.textContent = '02:00';
+            if (resendBtn) resendBtn.disabled = true;
+
+            otpTimer = setInterval(() => {
+                const minutes = Math.floor(timeLeft / 60);
+                const seconds = timeLeft % 60;
+                if (timerDisplay) {
+                    timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                }
+
+                if (timeLeft <= 0) {
+                    clearInterval(otpTimer);
+                    if (timerDisplay) timerDisplay.textContent = '00:00';
+                    if (resendBtn) resendBtn.disabled = false;
+                }
+                timeLeft--;
+            }, 1000);
+        }
+
+        function moveToNext(input, index) {
+            if (input.value.length === 1) {
+                const next = document.querySelectorAll('.otp-input')[index + 1];
+                if (next) next.focus();
+            }
+        }
+
+        function allowOnlyNumbers(event) {
+            const charCode = event.which ? event.which : event.keyCode;
+            if (charCode < 48 || charCode > 57) {
+                event.preventDefault();
+            }
+        }
+
+        function resendOTP() {
+            alert('OTP resent (Demo: 123456)');
+            startOTPTimer();
+            document.querySelectorAll('.otp-input').forEach(input => input.value = '');
+            document.querySelectorAll('.otp-input')[0]?.focus();
+        }
+
+        function verifyOTP() {
+            const inputs = document.querySelectorAll('.otp-input');
+            const otp = Array.from(inputs).map(i => i.value).join('');
+
+            if (otp === '123456') {
+                const user = JSON.parse(sessionStorage.getItem('currentUser'));
+                alert('Login successful! Redirecting...');
+
+                if (user && user.role === 'admin') {
+                    window.location.href = 'admin/dashboard.html';
+                } else {
+                    window.location.href = 'employee/dashboard.html';
+                }
+            } else {
+                alert('Invalid OTP. Use 123456');
+                inputs.forEach(i => i.value = '');
+                inputs[0].focus();
+            }
+        }
+
+        function closeOTPModal() {
+            document.getElementById('otpModal').style.display = 'none';
+            if (otpTimer) clearInterval(otpTimer);
+        }
+
+        // Make functions global
+        window.showLogin = showLogin;
+        window.showRegister = showRegister;
+        window.handleLogin = handleLogin;
+        window.handleRegister = handleRegister;
+        window.moveToNext = moveToNext;
+        window.verifyOTP = verifyOTP;
+        window.resendOTP = resendOTP;
+        window.closeOTPModal = closeOTPModal;
+        window.allowOnlyNumbers = allowOnlyNumbers;
+
+        // Close modal when clicking outside
+        window.onclick = function (event) {
+            const modal = document.getElementById('otpModal');
+            if (event.target === modal) {
+                modal.style.display = 'none';
+                if (otpTimer) clearInterval(otpTimer);
+            }
+        };
+
+        // Check if backend is reachable on load
+        fetch(`${API_URL}/health`)
+            .then(response => response.json())
+            .then(data => console.log('✅ Backend connected:', data))
+            .catch(error => console.error('❌ Backend not reachable:', error));
     </script>
 </body>
 
-</html>   
- <!-- Force redeploy 03/04/2026 20:36:03 -->
+</html>

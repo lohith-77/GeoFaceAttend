@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GeoFaceAttend - Role Selection</title>
+    <title>GeoFaceAttend - Smart Attendance System</title>
     <link rel="stylesheet" href="assets/css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -15,7 +15,42 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="GeoFaceAttend">
     <meta name="theme-color" content="#4361ee">
+    <meta name="description" content="Smart Attendance System with Face Recognition, GPS, and QR Code">
+    <meta name="keywords" content="attendance, face recognition, gps, qr code, employee management">
     <link rel="apple-touch-icon" href="/assets/icons/icon-152x152.png">
+
+    <style>
+        .version-badge {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 20px;
+            font-size: 10px;
+            z-index: 9999;
+        }
+
+        .features-preview {
+            margin: 20px 0;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .feature-tag {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+        }
+
+        .offline-status {
+            margin-top: 20px;
+            color: #f59e0b;
+        }
+    </style>
 </head>
 
 <body>
@@ -31,67 +66,96 @@
                 <span class="time-value" id="currentTime"></span>
             </div>
 
-            <h2 class="select-title">Select Your Role</h2>
-            <p class="select-subtitle">Choose your access level to continue</p>
-
             <div class="role-buttons">
                 <button onclick="selectRole('employee')" class="role-btn employee-btn">
                     <div class="btn-icon">👤</div>
                     <div class="btn-text">
                         <span class="btn-title">Employee</span>
-                        <span class="btn-desc">Mark attendance & apply leave</span>
                     </div>
                 </button>
                 <button onclick="selectRole('admin')" class="role-btn admin-btn">
                     <div class="btn-icon">⚙️</div>
                     <div class="btn-text">
                         <span class="btn-title">Admin</span>
-                        <span class="btn-desc">Manage employees & reports</span>
                     </div>
                 </button>
+            </div>
+
+            <div class="offline-status" id="offlineStatus" style="display: none;">
+                <span><i class="fas fa-wifi-slash"></i> You are offline - limited features available</span>
             </div>
         </div>
     </div>
 
+    <div class="version-badge">v2.0.0 | Production</div>
+
     <script>
+        // Configuration
+        const CONFIG = {
+            API: {
+                URL: window.location.hostname === 'localhost' ? 'http://localhost:5001' : 'https://geofaceattend.onrender.com'
+            }
+        };
+
+        // Utility functions
+        const Utils = {
+            setStorage: (key, value) => localStorage.setItem(key, JSON.stringify(value)),
+            getStorage: (key) => {
+                const item = localStorage.getItem(key);
+                return item ? JSON.parse(item) : null;
+            },
+            showToast: (message, type = 'info') => alert(`${type.toUpperCase()}: ${message}`),
+            initTheme: () => {
+                if (localStorage.getItem('darkMode') === 'true') {
+                    document.body.classList.add('dark-mode');
+                }
+            }
+        };
+
         function selectRole(role) {
-            localStorage.setItem('selectedRole', role);
+            Utils.setStorage('selectedRole', role);
             window.location.href = 'auth.html';
         }
 
         function updateTime() {
             const now = new Date();
-            document.getElementById('currentTime').textContent =
-                now.toLocaleTimeString('en-US', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit',
-                    hour12: true
-                });
+            document.getElementById('currentTime').textContent = now.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true
+            });
         }
+
         updateTime();
         setInterval(updateTime, 1000);
+
+        // Check online/offline status
+        function updateOnlineStatus() {
+            const statusEl = document.getElementById('offlineStatus');
+            statusEl.style.display = navigator.onLine ? 'none' : 'block';
+        }
+
+        window.addEventListener('online', updateOnlineStatus);
+        window.addEventListener('offline', updateOnlineStatus);
+        updateOnlineStatus();
+
+        // Check if already logged in
+        const currentUser = Utils.getStorage('currentUser');
+        const token = Utils.getStorage('token');
+
+        if (currentUser && token) {
+            window.location.href = currentUser.role === 'admin' ? 'admin/dashboard.html' : 'employee/dashboard.html';
+        }
+
+        Utils.initTheme();
     </script>
 
     <!-- Register Service Worker -->
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
-                    .then(registration => {
-                        console.log('✅ Service Worker registered:', registration.scope);
-                    })
-                    .catch(error => {
-                        console.log('❌ Service Worker registration failed:', error);
-                    });
-            });
-
-            window.addEventListener('online', () => {
-                document.body.classList.remove('offline');
-            });
-
-            window.addEventListener('offline', () => {
-                document.body.classList.add('offline');
+                navigator.serviceWorker.register('/sw.js').catch(error => console.log('SW failed:', error));
             });
         }
     </script>

@@ -1,0 +1,1055 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics Dashboard - GeoFaceAttend</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <!-- PWA Support -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="GeoFaceAttend">
+    <meta name="theme-color" content="#4361ee">
+
+    <style>
+        .analytics-container {
+            padding: 20px;
+        }
+
+        .filter-section {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 30px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 8px var(--shadow-color);
+        }
+
+        .filter-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .filter-group label {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        .filter-group select,
+        .filter-group input {
+            padding: 12px;
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+
+        .filter-group select:focus,
+        .filter-group input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .filter-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .metric-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 20px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 8px var(--shadow-color);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .metric-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .metric-icon.total {
+            background: rgba(67, 97, 238, 0.1);
+            color: #4361ee;
+        }
+
+        .metric-icon.present {
+            background: rgba(16, 185, 129, 0.1);
+            color: #10b981;
+        }
+
+        .metric-icon.late {
+            background: rgba(245, 158, 11, 0.1);
+            color: #f59e0b;
+        }
+
+        .metric-icon.leave {
+            background: rgba(139, 92, 246, 0.1);
+            color: #8b5cf6;
+        }
+
+        .metric-content {
+            flex: 1;
+        }
+
+        .metric-label {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        .metric-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 2px;
+        }
+
+        .metric-trend {
+            font-size: 12px;
+        }
+
+        .metric-trend.positive {
+            color: #10b981;
+        }
+
+        .metric-trend.negative {
+            color: #ef4444;
+        }
+
+        .chart-row {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .chart-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 20px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 8px var(--shadow-color);
+        }
+
+        .chart-card h3 {
+            font-size: 16px;
+            color: var(--text-primary);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .chart-card h3 i {
+            color: var(--primary);
+        }
+
+        .full-width-chart {
+            grid-column: span 2;
+        }
+
+        .insights-section {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 20px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 8px var(--shadow-color);
+        }
+
+        .insights-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .insights-header h3 {
+            font-size: 16px;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .insights-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .insight-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 12px;
+            background: var(--bg-tertiary);
+            border-radius: 10px;
+            border-left: 4px solid var(--primary);
+        }
+
+        .insight-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .insight-content {
+            flex: 1;
+        }
+
+        .insight-title {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .insight-description {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .export-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            justify-content: flex-end;
+        }
+
+        .export-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            transition: all 0.3s;
+        }
+
+        .export-btn.pdf {
+            background: #ef4444;
+            color: white;
+        }
+
+        .export-btn.csv {
+            background: #10b981;
+            color: white;
+        }
+
+        .export-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .loading-spinner {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-muted);
+        }
+
+        .loading-spinner i {
+            font-size: 40px;
+            margin-bottom: 15px;
+            color: var(--primary);
+        }
+
+        @media (max-width: 1024px) {
+            .analytics-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .chart-row {
+                grid-template-columns: 1fr;
+            }
+
+            .full-width-chart {
+                grid-column: span 1;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .analytics-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .filter-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .filter-actions {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="dashboard">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-fingerprint"></i>
+                    <span>GeoFaceAttend</span>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="dashboard.html">
+                    <i class="fas fa-home"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#employees" onclick="window.location.href='dashboard.html#employees'">
+                    <i class="fas fa-users"></i>
+                    <span>Employees</span>
+                </a>
+                <a href="#leaves" onclick="window.location.href='dashboard.html#leaves'">
+                    <i class="fas fa-umbrella-beach"></i>
+                    <span>Leave Requests</span>
+                </a>
+                <a href="#reports" onclick="window.location.href='dashboard.html#reports'">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>Reports</span>
+                </a>
+                <a href="analytics.html" class="active">
+                    <i class="fas fa-chart-pie"></i>
+                    <span>Analytics</span>
+                </a>
+                <a href="#qr" onclick="window.location.href='dashboard.html#qr'">
+                    <i class="fas fa-qrcode"></i>
+                    <span>Outstation QR</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-profile" onclick="toggleProfileMenu()">
+                    <img src="https://ui-avatars.com/api/?name=Admin+User&background=4361ee&color=fff" alt="Admin"
+                        id="adminAvatar">
+                    <div class="user-info">
+                        <p class="user-name" id="adminName">Admin User</p>
+                        <p class="user-role">Administrator</p>
+                    </div>
+                </div>
+                <button onclick="logout()" class="logout-sidebar-btn">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-bar">
+                <div class="page-title">
+                    <h1>Advanced Analytics</h1>
+                    <p id="currentDateTime"></p>
+                </div>
+                <div class="top-actions">
+                    <button onclick="toggleTheme()" class="icon-btn theme-toggle">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                    <button onclick="logout()" class="icon-btn">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </button>
+                </div>
+            </header>
+
+            <div class="analytics-container">
+                <!-- Filter Section -->
+                <div class="filter-section">
+                    <div class="filter-grid">
+                        <div class="filter-group">
+                            <label><i class="fas fa-calendar"></i> Date Range</label>
+                            <select id="dateRange">
+                                <option value="today">Today</option>
+                                <option value="yesterday">Yesterday</option>
+                                <option value="thisWeek" selected>This Week</option>
+                                <option value="lastWeek">Last Week</option>
+                                <option value="thisMonth">This Month</option>
+                                <option value="lastMonth">Last Month</option>
+                                <option value="custom">Custom Range</option>
+                            </select>
+                        </div>
+                        <div class="filter-group" id="customDateStart" style="display: none;">
+                            <label>Start Date</label>
+                            <input type="date" id="startDate" value="2026-03-01">
+                        </div>
+                        <div class="filter-group" id="customDateEnd" style="display: none;">
+                            <label>End Date</label>
+                            <input type="date" id="endDate" value="2026-03-31">
+                        </div>
+                        <div class="filter-group">
+                            <label><i class="fas fa-building"></i> Department</label>
+                            <select id="department">
+                                <option value="all">All Departments</option>
+                                <option value="Engineering">Engineering</option>
+                                <option value="Sales">Sales</option>
+                                <option value="Marketing">Marketing</option>
+                                <option value="HR">Human Resources</option>
+                                <option value="Finance">Finance</option>
+                                <option value="Operations">Operations</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label><i class="fas fa-chart-line"></i> Metric</label>
+                            <select id="metric">
+                                <option value="attendance">Attendance Rate</option>
+                                <option value="punctuality">Punctuality</option>
+                                <option value="leaves">Leave Usage</option>
+                                <option value="overtime">Overtime Hours</option>
+                                <option value="outstation">Outstation Days</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="filter-actions">
+                        <button onclick="applyFilters()" class="btn-primary">
+                            <i class="fas fa-sync-alt"></i> Apply Filters
+                        </button>
+                        <button onclick="resetFilters()" class="btn-outline">
+                            <i class="fas fa-undo"></i> Reset
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Loading State -->
+                <div id="loadingState" class="loading-spinner" style="display: none;">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <p>Loading analytics data...</p>
+                </div>
+
+                <!-- Analytics Content -->
+                <div id="analyticsContent">
+                    <!-- Key Metrics -->
+                    <div class="analytics-grid">
+                        <div class="metric-card">
+                            <div class="metric-icon total">
+                                <i class="fas fa-users"></i>
+                            </div>
+                            <div class="metric-content">
+                                <div class="metric-label">Total Employees</div>
+                                <div class="metric-value" id="totalEmployees">0</div>
+                                <div class="metric-trend" id="totalTrend"></div>
+                            </div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-icon present">
+                                <i class="fas fa-calendar-check"></i>
+                            </div>
+                            <div class="metric-content">
+                                <div class="metric-label">Attendance Rate</div>
+                                <div class="metric-value" id="attendanceRate">0%</div>
+                                <div class="metric-trend positive" id="attendanceTrend"></div>
+                            </div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-icon late">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <div class="metric-content">
+                                <div class="metric-label">Late Arrivals</div>
+                                <div class="metric-value" id="lateCount">0</div>
+                                <div class="metric-trend" id="lateTrend"></div>
+                            </div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-icon leave">
+                                <i class="fas fa-umbrella-beach"></i>
+                            </div>
+                            <div class="metric-content">
+                                <div class="metric-label">Leaves Taken</div>
+                                <div class="metric-value" id="leavesCount">0</div>
+                                <div class="metric-trend" id="leavesTrend"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts Row 1 -->
+                    <div class="chart-row">
+                        <div class="chart-card">
+                            <h3><i class="fas fa-chart-line"></i> Daily Attendance Trend</h3>
+                            <canvas id="trendChart" height="250"></canvas>
+                        </div>
+                        <div class="chart-card">
+                            <h3><i class="fas fa-chart-pie"></i> Department Distribution</h3>
+                            <canvas id="deptChart" height="250"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Charts Row 2 -->
+                    <div class="chart-row">
+                        <div class="chart-card">
+                            <h3><i class="fas fa-clock"></i> Punctuality by Department</h3>
+                            <canvas id="punctualityChart" height="250"></canvas>
+                        </div>
+                        <div class="chart-card">
+                            <h3><i class="fas fa-map-marker-alt"></i> Outstation vs Office</h3>
+                            <canvas id="locationChart" height="250"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Full Width Chart -->
+                    <div class="chart-row">
+                        <div class="chart-card full-width-chart">
+                            <h3><i class="fas fa-chart-bar"></i> Weekly Comparison</h3>
+                            <canvas id="comparisonChart" height="250"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Insights Section -->
+                    <div class="insights-section">
+                        <div class="insights-header">
+                            <h3><i class="fas fa-lightbulb"></i> AI-Powered Insights</h3>
+                            <button onclick="refreshInsights()" class="icon-btn">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                        </div>
+                        <div class="insights-list" id="insightsList">
+                            <div class="insight-item">
+                                <div class="insight-icon" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">
+                                    <i class="fas fa-arrow-up"></i>
+                                </div>
+                                <div class="insight-content">
+                                    <div class="insight-title">Attendance is 5% higher this week</div>
+                                    <div class="insight-description">Compared to last week, attendance has improved.
+                                        Great job!</div>
+                                </div>
+                            </div>
+                            <div class="insight-item">
+                                <div class="insight-icon" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                </div>
+                                <div class="insight-content">
+                                    <div class="insight-title">Late arrivals increasing in Engineering</div>
+                                    <div class="insight-description">3 late arrivals this week. Consider sending
+                                        reminders.</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Export Buttons -->
+                    <div class="export-buttons">
+                        <button onclick="exportAnalytics('pdf')" class="export-btn pdf">
+                            <i class="fas fa-file-pdf"></i> Export as PDF
+                        </button>
+                        <button onclick="exportAnalytics('csv')" class="export-btn csv">
+                            <i class="fas fa-file-csv"></i> Export as CSV
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="../assets/js/auth.js"></script>
+    <script src="../assets/js/email-service.js"></script>
+    <script src="../assets/js/ai-assistant.js"></script>
+    <script src="../assets/js/notifications.js"></script>
+
+    <script>
+        const user = JSON.parse(localStorage.getItem('currentUser'));
+        const apiUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? 'http://localhost:5001'
+            : 'https://geofaceattend.onrender.com';
+
+        let trendChart = null;
+        let deptChart = null;
+        let punctualityChart = null;
+        let locationChart = null;
+        let comparisonChart = null;
+
+        // Initialize user data
+        if (user) {
+            document.getElementById('adminName').textContent = user.name || 'Admin User';
+        }
+
+        // Show/hide custom date range
+        document.getElementById('dateRange').addEventListener('change', function () {
+            const customStart = document.getElementById('customDateStart');
+            const customEnd = document.getElementById('customDateEnd');
+            if (this.value === 'custom') {
+                customStart.style.display = 'block';
+                customEnd.style.display = 'block';
+            } else {
+                customStart.style.display = 'none';
+                customEnd.style.display = 'none';
+            }
+        });
+
+        // Apply filters and load data
+        async function applyFilters() {
+            const loading = document.getElementById('loadingState');
+            const content = document.getElementById('analyticsContent');
+
+            loading.style.display = 'block';
+            content.style.opacity = '0.5';
+
+            try {
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    throw new Error('No authentication token');
+                }
+
+                const dateRange = document.getElementById('dateRange').value;
+                let startDate, endDate;
+
+                if (dateRange === 'custom') {
+                    startDate = document.getElementById('startDate').value;
+                    endDate = document.getElementById('endDate').value;
+                } else {
+                    const dates = getDateRange(dateRange);
+                    startDate = dates.start;
+                    endDate = dates.end;
+                }
+
+                const department = document.getElementById('department').value;
+                const metric = document.getElementById('metric').value;
+
+                // Fetch analytics data
+                const response = await fetch(`${apiUrl}/api/analytics/detailed?startDate=${startDate}&endDate=${endDate}&department=${department}&metric=${metric}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch analytics');
+                }
+
+                const data = await response.json();
+                console.log('📊 Analytics data:', data);
+
+                // Update metrics
+                document.getElementById('totalEmployees').textContent = data.summary?.totalEmployees || '0';
+                document.getElementById('attendanceRate').textContent = (data.summary?.attendanceRate || 0) + '%';
+                document.getElementById('lateCount').textContent = data.summary?.lateCount || '0';
+                document.getElementById('leavesCount').textContent = data.summary?.leaveCount || '0';
+
+                // Update trends
+                document.getElementById('totalTrend').innerHTML = data.trends?.total ? `<i class="fas fa-arrow-${data.trends.total.direction}"></i> ${data.trends.total.percentage}%` : '';
+                document.getElementById('attendanceTrend').innerHTML = data.trends?.attendance ? `<i class="fas fa-arrow-${data.trends.attendance.direction}"></i> ${data.trends.attendance.percentage}%` : '';
+                document.getElementById('lateTrend').innerHTML = data.trends?.late ? `<i class="fas fa-arrow-${data.trends.late.direction}"></i> ${data.trends.late.percentage}%` : '';
+                document.getElementById('leavesTrend').innerHTML = data.trends?.leaves ? `<i class="fas fa-arrow-${data.trends.leaves.direction}"></i> ${data.trends.leaves.percentage}%` : '';
+
+                // Update charts
+                updateTrendChart(data.trendChart);
+                updateDeptChart(data.departmentChart);
+                updatePunctualityChart(data.punctualityChart);
+                updateLocationChart(data.locationChart);
+                updateComparisonChart(data.comparisonChart);
+
+                // Update insights
+                updateInsights(data.insights);
+
+            } catch (error) {
+                console.error('Error applying filters:', error);
+                aiAssistant?.showNotification('error', 'Error', 'Failed to load analytics data');
+            } finally {
+                loading.style.display = 'none';
+                content.style.opacity = '1';
+            }
+        }
+
+        // Get date range based on selection
+        function getDateRange(range) {
+            const today = new Date();
+            const end = today.toISOString().split('T')[0];
+            let start;
+
+            switch (range) {
+                case 'today':
+                    start = end;
+                    break;
+                case 'yesterday':
+                    const yesterday = new Date(today);
+                    yesterday.setDate(yesterday.getDate() - 1);
+                    start = yesterday.toISOString().split('T')[0];
+                    break;
+                case 'thisWeek':
+                    const monday = new Date(today);
+                    monday.setDate(today.getDate() - (today.getDay() || 7) + 1);
+                    start = monday.toISOString().split('T')[0];
+                    break;
+                case 'lastWeek':
+                    const lastMonday = new Date(today);
+                    lastMonday.setDate(today.getDate() - (today.getDay() || 7) - 6);
+                    start = lastMonday.toISOString().split('T')[0];
+                    break;
+                case 'thisMonth':
+                    start = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+                    break;
+                case 'lastMonth':
+                    start = new Date(today.getFullYear(), today.getMonth() - 1, 1).toISOString().split('T')[0];
+                    break;
+                default:
+                    start = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+            }
+
+            return { start, end };
+        }
+
+        // Update Trend Chart
+        function updateTrendChart(data) {
+            const ctx = document.getElementById('trendChart')?.getContext('2d');
+            if (!ctx) return;
+
+            if (trendChart) trendChart.destroy();
+
+            trendChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data?.labels || ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                    datasets: [{
+                        label: 'Attendance %',
+                        data: data?.values || [85, 88, 92, 90, 87, 0, 0],
+                        borderColor: '#4361ee',
+                        backgroundColor: 'rgba(67, 97, 238, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        pointBackgroundColor: '#4361ee',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => `Attendance: ${context.raw}%`
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: { callback: (value) => value + '%' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Update Department Chart
+        function updateDeptChart(data) {
+            const ctx = document.getElementById('deptChart')?.getContext('2d');
+            if (!ctx) return;
+
+            if (deptChart) deptChart.destroy();
+
+            deptChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: data?.labels || ['Engineering', 'Sales', 'Marketing', 'HR', 'Finance'],
+                    datasets: [{
+                        data: data?.values || [25, 18, 12, 8, 15],
+                        backgroundColor: ['#4361ee', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    },
+                    cutout: '60%'
+                }
+            });
+        }
+
+        // Update Punctuality Chart
+        function updatePunctualityChart(data) {
+            const ctx = document.getElementById('punctualityChart')?.getContext('2d');
+            if (!ctx) return;
+
+            if (punctualityChart) punctualityChart.destroy();
+
+            punctualityChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data?.labels || ['Engineering', 'Sales', 'Marketing', 'HR', 'Finance'],
+                    datasets: [
+                        {
+                            label: 'On Time',
+                            data: data?.onTime || [95, 88, 92, 96, 90],
+                            backgroundColor: '#10b981'
+                        },
+                        {
+                            label: 'Late',
+                            data: data?.late || [5, 12, 8, 4, 10],
+                            backgroundColor: '#f59e0b'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: { callback: (value) => value + '%' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Update Location Chart
+        function updateLocationChart(data) {
+            const ctx = document.getElementById('locationChart')?.getContext('2d');
+            if (!ctx) return;
+
+            if (locationChart) locationChart.destroy();
+
+            locationChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: ['Office', 'Outstation', 'Remote'],
+                    datasets: [{
+                        data: data?.values || [75, 15, 10],
+                        backgroundColor: ['#4361ee', '#8b5cf6', '#10b981']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    }
+                }
+            });
+        }
+
+        // Update Comparison Chart
+        function updateComparisonChart(data) {
+            const ctx = document.getElementById('comparisonChart')?.getContext('2d');
+            if (!ctx) return;
+
+            if (comparisonChart) comparisonChart.destroy();
+
+            comparisonChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data?.labels || ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+                    datasets: [
+                        {
+                            label: 'This Period',
+                            data: data?.current || [92, 88, 94, 90],
+                            backgroundColor: '#4361ee'
+                        },
+                        {
+                            label: 'Previous Period',
+                            data: data?.previous || [88, 85, 90, 87],
+                            backgroundColor: '#94a3b8'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: { callback: (value) => value + '%' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Update insights
+        function updateInsights(insights) {
+            const list = document.getElementById('insightsList');
+            if (!list) return;
+
+            if (!insights || insights.length === 0) {
+                list.innerHTML = `
+                    <div class="insight-item">
+                        <div class="insight-icon" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">
+                            <i class="fas fa-check"></i>
+                        </div>
+                        <div class="insight-content">
+                            <div class="insight-title">All systems normal</div>
+                            <div class="insight-description">No significant anomalies detected</div>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            list.innerHTML = insights.map(insight => `
+                <div class="insight-item">
+                    <div class="insight-icon" style="background: ${getInsightColor(insight.type)}; color: ${getInsightTextColor(insight.type)};">
+                        <i class="fas fa-${insight.icon || 'lightbulb'}"></i>
+                    </div>
+                    <div class="insight-content">
+                        <div class="insight-title">${insight.title}</div>
+                        <div class="insight-description">${insight.description}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function getInsightColor(type) {
+            switch (type) {
+                case 'positive': return 'rgba(16, 185, 129, 0.1)';
+                case 'warning': return 'rgba(245, 158, 11, 0.1)';
+                case 'negative': return 'rgba(239, 68, 68, 0.1)';
+                default: return 'rgba(67, 97, 238, 0.1)';
+            }
+        }
+
+        function getInsightTextColor(type) {
+            switch (type) {
+                case 'positive': return '#10b981';
+                case 'warning': return '#f59e0b';
+                case 'negative': return '#ef4444';
+                default: return '#4361ee';
+            }
+        }
+
+        // Reset filters
+        function resetFilters() {
+            document.getElementById('dateRange').value = 'thisWeek';
+            document.getElementById('customDateStart').style.display = 'none';
+            document.getElementById('customDateEnd').style.display = 'none';
+            document.getElementById('department').value = 'all';
+            document.getElementById('metric').value = 'attendance';
+            applyFilters();
+        }
+
+        // Refresh insights
+        async function refreshInsights() {
+            await applyFilters();
+            aiAssistant?.showNotification('success', 'Insights Updated', 'Latest insights loaded');
+        }
+
+        // Export analytics
+        async function exportAnalytics(format) {
+            try {
+                const token = localStorage.getItem('token');
+                const dateRange = document.getElementById('dateRange').value;
+                let startDate, endDate;
+
+                if (dateRange === 'custom') {
+                    startDate = document.getElementById('startDate').value;
+                    endDate = document.getElementById('endDate').value;
+                } else {
+                    const dates = getDateRange(dateRange);
+                    startDate = dates.start;
+                    endDate = dates.end;
+                }
+
+                const department = document.getElementById('department').value;
+
+                if (format === 'pdf') {
+                    window.open(`${apiUrl}/api/analytics/export/pdf?startDate=${startDate}&endDate=${endDate}&department=${department}`, '_blank');
+                } else {
+                    window.open(`${apiUrl}/api/analytics/export/csv?startDate=${startDate}&endDate=${endDate}&department=${department}`, '_blank');
+                }
+
+                aiAssistant?.showNotification('success', 'Export Started', `Analytics exported as ${format.toUpperCase()}`);
+
+            } catch (error) {
+                console.error('Export error:', error);
+                aiAssistant?.showNotification('error', 'Export Failed', 'Could not export analytics');
+            }
+        }
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', () => {
+            updateDateTime();
+            setInterval(updateDateTime, 1000);
+            applyFilters();
+        });
+
+        // Utility functions
+        function toggleTheme() {
+            document.body.classList.toggle('dark-mode');
+            const icon = document.querySelector('.theme-toggle i');
+            if (icon) icon.className = document.body.classList.contains('dark-mode') ? 'fas fa-sun' : 'fas fa-moon';
+        }
+
+        function logout() {
+            localStorage.removeItem('currentUser');
+            localStorage.removeItem('selectedRole');
+            localStorage.removeItem('token');
+            window.location.href = '../index.html';
+        }
+
+        function updateDateTime() {
+            const now = new Date();
+            const el = document.getElementById('currentDateTime');
+            if (el) {
+                el.textContent = now.toLocaleString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                });
+            }
+        }
+
+        // Make functions globally available
+        window.applyFilters = applyFilters;
+        window.resetFilters = resetFilters;
+        window.refreshInsights = refreshInsights;
+        window.exportAnalytics = exportAnalytics;
+        window.toggleTheme = toggleTheme;
+        window.logout = logout;
+    </script>
+</body>
+
+</html>

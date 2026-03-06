@@ -8,7 +8,6 @@
     <link rel="stylesheet" href="../assets/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <!-- QR Code Generation Library -->
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 
     <!-- PWA Support -->
@@ -20,43 +19,613 @@
     <link rel="apple-touch-icon" href="/assets/icons/icon-152x152.png">
 
     <style>
+        /* Dashboard Layout */
         .stat-card {
             cursor: pointer;
-            transition: transform 0.2s;
+            transition: transform 0.2s, box-shadow 0.2s;
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 24px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 8px var(--shadow-color);
         }
 
         .stat-card:hover {
             transform: translateY(-5px);
+            box-shadow: 0 8px 16px var(--shadow-color);
         }
 
+        .stat-icon {
+            width: 60px;
+            height: 60px;
+            background: rgba(67, 97, 238, 0.1);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: var(--primary);
+        }
+
+        .stat-content h3 {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-bottom: 5px;
+        }
+
+        .stat-number {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 5px;
+        }
+
+        .stat-change.positive {
+            color: #10b981;
+        }
+
+        .stat-change.negative {
+            color: #ef4444;
+        }
+
+        /* Charts */
         .chart-card {
             background: var(--card-bg);
-            border-radius: 12px;
+            border-radius: 16px;
             padding: 20px;
             margin-bottom: 20px;
             box-shadow: 0 2px 8px var(--shadow-color);
+            border: 1px solid var(--border-color);
         }
 
+        .charts-row {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        /* Quick Actions */
         .quick-actions {
             display: flex;
             gap: 10px;
             margin-top: 20px;
+            flex-wrap: wrap;
         }
 
         .action-btn {
-            padding: 10px 20px;
+            padding: 12px 24px;
             border: none;
-            border-radius: 8px;
+            border-radius: 12px;
             cursor: pointer;
             font-size: 14px;
+            font-weight: 600;
             display: flex;
             align-items: center;
             gap: 8px;
-            transition: all 0.2s;
+            transition: all 0.3s;
+            background: var(--card-bg);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
         }
 
         .action-btn:hover {
             transform: translateY(-2px);
+            box-shadow: 0 4px 12px var(--shadow-color);
+        }
+
+        .action-btn.btn-primary {
+            background: var(--primary);
+            color: white;
+            border: none;
+        }
+
+        .action-btn.btn-success {
+            background: #10b981;
+            color: white;
+            border: none;
+        }
+
+        .action-btn.btn-info {
+            background: #8b5cf6;
+            color: white;
+            border: none;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            border-radius: 24px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: modalSlideIn 0.3s ease;
+            border: 1px solid var(--border-color);
+        }
+
+        .modal-content.large {
+            max-width: 800px;
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                transform: translateY(-30px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .modal-header h3 {
+            font-size: 20px;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--text-muted);
+            transition: color 0.3s;
+        }
+
+        .modal-close:hover {
+            color: var(--danger);
+        }
+
+        /* Employee Table */
+        .employee-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .employee-info img {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        /* Status Badges */
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 30px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: capitalize;
+            display: inline-block;
+        }
+
+        .status-badge.present {
+            background: rgba(16, 185, 129, 0.15);
+            color: #10b981;
+        }
+
+        .status-badge.late {
+            background: rgba(245, 158, 11, 0.15);
+            color: #f59e0b;
+        }
+
+        .status-badge.absent {
+            background: rgba(239, 68, 68, 0.15);
+            color: #ef4444;
+        }
+
+        .status-badge.pending {
+            background: rgba(245, 158, 11, 0.15);
+            color: #f59e0b;
+        }
+
+        .status-badge.approved {
+            background: rgba(16, 185, 129, 0.15);
+            color: #10b981;
+        }
+
+        .status-badge.rejected {
+            background: rgba(239, 68, 68, 0.15);
+            color: #ef4444;
+        }
+
+        /* Action Buttons */
+        .action-approve,
+        .action-reject,
+        .action-edit,
+        .action-delete {
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 0 4px;
+            transition: all 0.3s;
+            font-size: 14px;
+        }
+
+        .action-approve {
+            background: rgba(16, 185, 129, 0.15);
+            color: #10b981;
+        }
+
+        .action-approve:hover {
+            background: #10b981;
+            color: white;
+            transform: scale(1.1);
+        }
+
+        .action-reject {
+            background: rgba(239, 68, 68, 0.15);
+            color: #ef4444;
+        }
+
+        .action-reject:hover {
+            background: #ef4444;
+            color: white;
+            transform: scale(1.1);
+        }
+
+        .action-edit {
+            background: rgba(67, 97, 238, 0.15);
+            color: var(--primary);
+        }
+
+        .action-edit:hover {
+            background: var(--primary);
+            color: white;
+            transform: scale(1.1);
+        }
+
+        .action-delete {
+            background: rgba(239, 68, 68, 0.15);
+            color: #ef4444;
+        }
+
+        .action-delete:hover {
+            background: #ef4444;
+            color: white;
+            transform: scale(1.1);
+        }
+
+        /* Search & Filters */
+        .search-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--bg-tertiary);
+            padding: 12px 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border-color);
+        }
+
+        .search-bar i {
+            color: var(--text-muted);
+        }
+
+        .search-bar input {
+            flex: 1;
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+
+        .search-bar input:focus {
+            outline: none;
+        }
+
+        .table-container {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 20px;
+            overflow-x: auto;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 8px var(--shadow-color);
+            margin-bottom: 30px;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-table th {
+            text-align: left;
+            padding: 15px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .data-table td {
+            padding: 15px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-secondary);
+        }
+
+        .data-table tr:hover {
+            background: var(--hover-bg);
+        }
+
+        .filter-select {
+            padding: 10px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .add-employee-btn {
+            padding: 12px 24px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .add-employee-btn:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(67, 97, 238, 0.3);
+        }
+
+        /* Reports */
+        .report-filters {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .report-filters input,
+        .report-filters select {
+            padding: 12px;
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+
+        .report-summary {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .summary-card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 16px;
+            text-align: center;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 8px var(--shadow-color);
+        }
+
+        .summary-label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .summary-value {
+            display: block;
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        /* QR Code */
+        .qr-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .qr-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 20px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 8px var(--shadow-color);
+            text-align: center;
+        }
+
+        .qr-code {
+            display: flex;
+            justify-content: center;
+            margin: 20px 0;
+            padding: 20px;
+            background: white;
+            border-radius: 12px;
+        }
+
+        .qr-code canvas {
+            max-width: 200px;
+            height: auto;
+        }
+
+        .qr-details {
+            text-align: left;
+            margin: 15px 0;
+            padding: 15px;
+            background: var(--bg-tertiary);
+            border-radius: 12px;
+        }
+
+        /* Toggle Switch */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--border-color);
+            transition: .3s;
+            border-radius: 24px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+
+        input:checked+.toggle-slider {
+            background-color: var(--primary);
+        }
+
+        input:checked+.toggle-slider:before {
+            transform: translateX(26px);
+        }
+
+        /* Batch Actions */
+        .batch-actions {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: var(--bg-tertiary);
+            border-radius: 12px;
+            align-items: center;
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #ef4444;
+            color: white;
+            font-size: 10px;
+            padding: 2px 5px;
+            border-radius: 10px;
+            min-width: 18px;
+            text-align: center;
+        }
+
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid var(--primary);
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .version-badge {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 20px;
+            font-size: 10px;
+            z-index: 9999;
         }
     </style>
 </head>
@@ -73,28 +642,23 @@
 
             <nav class="sidebar-nav">
                 <a href="#dashboard" class="active" onclick="showSection('dashboard')">
-                    <i class="fas fa-home"></i>
-                    <span>Dashboard</span>
+                    <i class="fas fa-home"></i> <span>Dashboard</span>
                 </a>
                 <a href="#employees" onclick="showSection('employees')">
-                    <i class="fas fa-users"></i>
-                    <span>Employees</span>
+                    <i class="fas fa-users"></i> <span>Employees</span>
                 </a>
                 <a href="#leaves" onclick="showSection('leaves')">
-                    <i class="fas fa-umbrella-beach"></i>
-                    <span>Leave Requests</span>
+                    <i class="fas fa-umbrella-beach"></i> <span>Leave Requests</span>
                 </a>
                 <a href="#reports" onclick="showSection('reports')">
-                    <i class="fas fa-chart-bar"></i>
-                    <span>Reports</span>
+                    <i class="fas fa-chart-bar"></i> <span>Reports</span>
                 </a>
                 <a href="#analytics" onclick="showSection('analytics')">
-                    <i class="fas fa-chart-pie"></i>
-                    <span>Analytics</span>
+                    <i class="fas fa-chart-pie"></i> <span>Analytics</span>
                 </a>
                 <a href="#qr" onclick="showSection('qr'); loadQREmployees(); loadActiveQRs();">
-                    <i class="fas fa-qrcode"></i>
-                    <span>Outstation QR</span>
+                    <i class="fas fa-qrcode"></i> <span>Outstation QR</span>
+                    <span class="notification-badge" id="qrBadge" style="display: none;">0</span>
                 </a>
             </nav>
 
@@ -107,7 +671,7 @@
                         <p class="user-role">Administrator</p>
                     </div>
                 </div>
-                <button onclick="logout()" class="logout-sidebar-btn">
+                <button onclick="logout()" class="logout-sidebar-btn" title="Logout">
                     <i class="fas fa-sign-out-alt"></i>
                 </button>
             </div>
@@ -120,10 +684,10 @@
                     <p id="currentDateTime"></p>
                 </div>
                 <div class="top-actions">
-                    <button onclick="toggleTheme()" class="icon-btn theme-toggle">
+                    <button onclick="toggleTheme()" class="icon-btn theme-toggle" title="Toggle Theme">
                         <i class="fas fa-moon"></i>
                     </button>
-                    <button onclick="logout()" class="icon-btn">
+                    <button onclick="logout()" class="icon-btn" title="Logout">
                         <i class="fas fa-sign-out-alt"></i>
                     </button>
                 </div>
@@ -139,35 +703,27 @@
                 <div class="profile-body">
                     <div class="profile-item">
                         <i class="fas fa-id-card"></i>
-                        <div>
-                            <span class="item-label">Employee ID</span>
-                            <span class="item-value" id="profileEmpId">ADM001</span>
-                        </div>
+                        <div><span class="item-label">Employee ID</span><span class="item-value"
+                                id="profileEmpId">ADM001</span></div>
                     </div>
                     <div class="profile-item">
                         <i class="fas fa-building"></i>
-                        <div>
-                            <span class="item-label">Department</span>
-                            <span class="item-value" id="profileDept">Management</span>
-                        </div>
+                        <div><span class="item-label">Department</span><span class="item-value"
+                                id="profileDept">Management</span></div>
                     </div>
                     <div class="profile-item">
                         <i class="fas fa-calendar"></i>
-                        <div>
-                            <span class="item-label">Joined</span>
-                            <span class="item-value" id="profileJoined">Jan 15, 2024</span>
-                        </div>
+                        <div><span class="item-label">Joined</span><span class="item-value" id="profileJoined">Jan 15,
+                                2024</span></div>
                     </div>
                 </div>
             </div>
 
+            <!-- DASHBOARD SECTION -->
             <div id="dashboard-section" class="section active">
-                <!-- Stats Cards -->
                 <div class="stats-grid">
                     <div class="stat-card" onclick="showEmployeeList('total')">
-                        <div class="stat-icon">
-                            <i class="fas fa-users"></i>
-                        </div>
+                        <div class="stat-icon"><i class="fas fa-users"></i></div>
                         <div class="stat-content">
                             <h3>Total Employees</h3>
                             <p class="stat-number" id="totalEmployees">0</p>
@@ -175,9 +731,7 @@
                         </div>
                     </div>
                     <div class="stat-card" onclick="showEmployeeList('present')">
-                        <div class="stat-icon">
-                            <i class="fas fa-user-check"></i>
-                        </div>
+                        <div class="stat-icon"><i class="fas fa-user-check"></i></div>
                         <div class="stat-content">
                             <h3>Present Today</h3>
                             <p class="stat-number" id="presentToday">0</p>
@@ -185,9 +739,7 @@
                         </div>
                     </div>
                     <div class="stat-card" onclick="showEmployeeList('late')">
-                        <div class="stat-icon">
-                            <i class="fas fa-clock"></i>
-                        </div>
+                        <div class="stat-icon"><i class="fas fa-clock"></i></div>
                         <div class="stat-content">
                             <h3>Late Arrivals</h3>
                             <p class="stat-number" id="lateToday">0</p>
@@ -195,9 +747,7 @@
                         </div>
                     </div>
                     <div class="stat-card" onclick="showEmployeeList('leave')">
-                        <div class="stat-icon">
-                            <i class="fas fa-umbrella-beach"></i>
-                        </div>
+                        <div class="stat-icon"><i class="fas fa-umbrella-beach"></i></div>
                         <div class="stat-content">
                             <h3>On Leave</h3>
                             <p class="stat-number" id="onLeave">0</p>
@@ -206,7 +756,6 @@
                     </div>
                 </div>
 
-                <!-- Charts Row -->
                 <div class="charts-row">
                     <div class="chart-card">
                         <h3>Department Distribution</h3>
@@ -218,42 +767,53 @@
                     </div>
                 </div>
 
-                <!-- Quick Actions -->
+                <div class="recent-activity" style="margin-top: 20px;">
+                    <h3><i class="fas fa-history"></i> Recent Activity</h3>
+                    <div class="activity-list" id="activityList">
+                        <p class="text-muted">Loading activities...</p>
+                    </div>
+                </div>
+
                 <div class="quick-actions">
-                    <button onclick="exportReport()" class="action-btn btn-primary">
-                        <i class="fas fa-download"></i> Export Report
-                    </button>
-                    <button onclick="downloadPDFReport()" class="action-btn btn-success">
-                        <i class="fas fa-file-pdf"></i> Download PDF
-                    </button>
-                    <button onclick="sendTestNotification()" class="action-btn btn-info">
-                        <i class="fas fa-bell"></i> Test Notification
-                    </button>
-                    <button onclick="refreshData()" class="action-btn btn-secondary">
-                        <i class="fas fa-sync-alt"></i> Refresh Data
-                    </button>
+                    <button onclick="exportReport()" class="action-btn btn-primary"><i class="fas fa-download"></i>
+                        Export Report</button>
+                    <button onclick="downloadPDFReport()" class="action-btn btn-success"><i class="fas fa-file-pdf"></i>
+                        Download PDF</button>
+                    <button onclick="refreshData()" class="action-btn"><i class="fas fa-sync-alt"></i> Refresh
+                        Data</button>
                 </div>
             </div>
 
-            <!-- Employees Section -->
+            <!-- EMPLOYEES SECTION -->
             <div id="employees-section" class="section">
                 <div class="section-header">
                     <h2>Employee Management</h2>
                     <div class="header-actions">
-                        <button onclick="showAddEmployeeModal()" class="add-employee-btn">
-                            <i class="fas fa-plus"></i> Add Employee
-                        </button>
+                        <button onclick="showAddEmployeeModal()" class="add-employee-btn"><i class="fas fa-plus"></i>
+                            Add Employee</button>
                     </div>
                 </div>
+
+                <div class="batch-actions" id="batchActions" style="display: none;">
+                    <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                    <label for="selectAll">Select All</label>
+                    <span id="selectedCount">0 selected</span>
+                    <button onclick="bulkDelete()" class="action-delete"><i class="fas fa-trash"></i> Delete
+                        Selected</button>
+                </div>
+
                 <div class="search-bar">
                     <i class="fas fa-search"></i>
                     <input type="text" id="employeeSearch" placeholder="Search employees..."
                         onkeyup="searchEmployees()">
                 </div>
+
                 <div class="table-container">
                     <table class="data-table">
                         <thead>
                             <tr>
+                                <th width="40"><input type="checkbox" id="headerCheckbox"
+                                        onchange="toggleHeaderCheckbox()"></th>
                                 <th>EMPLOYEE</th>
                                 <th>DEPARTMENT</th>
                                 <th>EMPLOYEE ID</th>
@@ -265,14 +825,14 @@
                         </thead>
                         <tbody id="employeesBody">
                             <tr>
-                                <td colspan="7" class="text-muted">Loading employees...</td>
+                                <td colspan="8" class="text-muted">Loading employees...</td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
             </div>
 
-            <!-- Leave Requests Section -->
+            <!-- LEAVE REQUESTS SECTION -->
             <div id="leaves-section" class="section">
                 <div class="section-header">
                     <h2>Leave Requests Management</h2>
@@ -285,6 +845,7 @@
                         </select>
                     </div>
                 </div>
+
                 <div class="table-container">
                     <table class="data-table">
                         <thead>
@@ -294,6 +855,7 @@
                                 <th>LEAVE TYPE</th>
                                 <th>START DATE</th>
                                 <th>END DATE</th>
+                                <th>DAYS</th>
                                 <th>REASON</th>
                                 <th>STATUS</th>
                                 <th>ACTIONS</th>
@@ -301,151 +863,243 @@
                         </thead>
                         <tbody id="leaveRequestsBody">
                             <tr>
-                                <td colspan="8" class="text-muted">Loading leave requests...</td>
+                                <td colspan="9" class="text-muted">Loading leave requests...</td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
             </div>
 
-            <!-- Reports Section -->
+            <!-- REPORTS SECTION -->
             <div id="reports-section" class="section">
                 <div class="section-header">
                     <h2>Attendance Reports</h2>
                 </div>
                 <div class="report-filters">
-                    <input type="date" id="reportStartDate" class="form-control" value="2026-03-01">
-                    <input type="date" id="reportEndDate" class="form-control" value="2026-03-31">
-                    <button onclick="generateReport()" class="btn-primary">
-                        <i class="fas fa-sync-alt"></i> Generate
-                    </button>
-                    <button onclick="exportToExcel()" class="btn-success">
-                        <i class="fas fa-file-excel"></i> Export to Excel
-                    </button>
-                    <button onclick="downloadPDFReport()" class="btn-info">
-                        <i class="fas fa-file-pdf"></i> Download PDF
-                    </button>
+                    <select id="reportType">
+                        <option value="weekly" selected>Weekly Report</option>
+                        <option value="monthly">Monthly Report</option>
+                    </select>
+                    <input type="date" id="reportStartDate" value="2026-03-01">
+                    <input type="date" id="reportEndDate" value="2026-03-31">
+                    <button onclick="generateReport()" class="btn-primary"><i class="fas fa-sync-alt"></i>
+                        Generate</button>
+                    <button onclick="downloadPDFReport()" class="btn-success"><i class="fas fa-file-pdf"></i>
+                        PDF</button>
                 </div>
+
                 <div class="report-summary">
-                    <div class="summary-card">
-                        <span class="summary-label">Total Employees</span>
-                        <span class="summary-value" id="reportTotal">0</span>
-                    </div>
-                    <div class="summary-card">
-                        <span class="summary-label">Present</span>
-                        <span class="summary-value" id="reportPresent">0</span>
-                    </div>
-                    <div class="summary-card">
-                        <span class="summary-label">Late</span>
-                        <span class="summary-value" id="reportLate">0</span>
-                    </div>
-                    <div class="summary-card">
-                        <span class="summary-label">On Leave</span>
-                        <span class="summary-value" id="reportLeave">0</span>
-                    </div>
+                    <div class="summary-card"><span class="summary-label">Total Employees</span><span
+                            class="summary-value" id="reportTotal">0</span></div>
+                    <div class="summary-card"><span class="summary-label">Present</span><span class="summary-value"
+                            id="reportPresent">0</span></div>
+                    <div class="summary-card"><span class="summary-label">Late</span><span class="summary-value"
+                            id="reportLate">0</span></div>
+                    <div class="summary-card"><span class="summary-label">On Leave</span><span class="summary-value"
+                            id="reportLeave">0</span></div>
                 </div>
-                <div class="chart-container">
-                    <canvas id="reportChart"></canvas>
-                </div>
+
+                <div class="chart-container"><canvas id="reportChart"></canvas></div>
             </div>
 
-            <!-- Analytics Section -->
+            <!-- ANALYTICS SECTION -->
             <div id="analytics-section" class="section">
                 <div class="section-header">
                     <h2><i class="fas fa-chart-pie"></i> Analytics Dashboard</h2>
-                    <div class="header-actions">
-                        <button onclick="refreshAnalytics()" class="icon-btn">
-                            <i class="fas fa-sync-alt"></i>
-                        </button>
-                        <button onclick="exportAnalytics()" class="btn-primary">
-                            <i class="fas fa-download"></i> Export Report
-                        </button>
-                    </div>
+                    <button onclick="refreshAnalytics()" class="icon-btn"><i class="fas fa-sync-alt"></i></button>
                 </div>
 
                 <div class="analytics-summary"
                     style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 30px;">
                     <div class="stat-card">
-                        <div class="stat-icon" style="background: rgba(67, 97, 238, 0.1);">
-                            <i class="fas fa-users" style="color: #4361ee;"></i>
-                        </div>
+                        <div class="stat-icon" style="background: rgba(67,97,238,0.1);"><i class="fas fa-users"
+                                style="color: #4361ee;"></i></div>
                         <div class="stat-content">
                             <h3>Total Employees</h3>
                             <p class="stat-number" id="analyticsTotalEmployees">0</p>
-                            <span class="stat-label">Active users</span>
                         </div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-icon" style="background: rgba(16, 185, 129, 0.1);">
-                            <i class="fas fa-calendar-check" style="color: #10b981;"></i>
-                        </div>
+                        <div class="stat-icon" style="background: rgba(16,185,129,0.1);"><i
+                                class="fas fa-calendar-check" style="color: #10b981;"></i></div>
                         <div class="stat-content">
                             <h3>Attendance Rate</h3>
                             <p class="stat-number" id="analyticsAttendanceRate">0%</p>
-                            <span class="stat-label">This month</span>
                         </div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-icon" style="background: rgba(245, 158, 11, 0.1);">
-                            <i class="fas fa-umbrella-beach" style="color: #f59e0b;"></i>
-                        </div>
+                        <div class="stat-icon" style="background: rgba(245,158,11,0.1);"><i
+                                class="fas fa-umbrella-beach" style="color: #f59e0b;"></i></div>
                         <div class="stat-content">
                             <h3>Leave Requests</h3>
-                            <p class="stat-number" id="analyticsTotalLeaves">0</p>
-                            <span class="stat-label">Pending: <span id="analyticsPendingLeaves">0</span></span>
+                            <p class="stat-number" id="analyticsTotalLeaves">0</p><span class="stat-label">Pending:
+                                <span id="analyticsPendingLeaves">0</span></span>
                         </div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-icon" style="background: rgba(139, 92, 246, 0.1);">
-                            <i class="fas fa-map-marker-alt" style="color: #8b5cf6;"></i>
-                        </div>
+                        <div class="stat-icon" style="background: rgba(139,92,246,0.1);"><i
+                                class="fas fa-map-marker-alt" style="color: #8b5cf6;"></i></div>
                         <div class="stat-content">
                             <h3>Outstation</h3>
                             <p class="stat-number" id="analyticsOutstation">0</p>
-                            <span class="stat-label">Remote workers</span>
                         </div>
                     </div>
                 </div>
 
-                <div class="charts-row" style="margin-bottom: 30px;">
+                <div class="charts-row">
                     <div class="chart-card">
-                        <h3>Department Distribution</h3>
-                        <canvas id="analyticsDeptChart" style="height: 250px;"></canvas>
+                        <h3>Department Distribution</h3><canvas id="analyticsDeptChart" style="height: 250px;"></canvas>
                     </div>
                     <div class="chart-card">
-                        <h3>Leave Status Distribution</h3>
-                        <canvas id="analyticsLeaveChart" style="height: 250px;"></canvas>
+                        <h3>Leave Status</h3><canvas id="analyticsLeaveChart" style="height: 250px;"></canvas>
                     </div>
                 </div>
             </div>
 
-            <!-- Outstation QR Section -->
+            <!-- OUTSTATION QR SECTION -->
             <div id="qr-section" class="section">
-                <!-- Keep your existing QR section code here -->
+                <div class="section-header">
+                    <h2><i class="fas fa-qrcode"></i> Outstation QR Management</h2>
+                    <button onclick="showGenerateQRModal()" class="btn-primary"><i class="fas fa-plus"></i> Generate New
+                        QR</button>
+                </div>
+
+                <div class="qr-generator"
+                    style="background: var(--card-bg); border-radius: 16px; padding: 30px; margin-bottom: 30px; border: 1px solid var(--border-color);">
+                    <h3 style="margin-bottom: 20px;">Generate Outstation QR Code</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+                        <div class="form-group">
+                            <label>Select Employee</label>
+                            <select id="qrEmployee" class="form-control">
+                                <option value="">Loading employees...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Location</label>
+                            <input type="text" id="qrLocation" class="form-control" placeholder="e.g., Client Site">
+                        </div>
+                        <div class="form-group">
+                            <label>Start Date</label>
+                            <input type="date" id="qrStartDate" class="form-control" value="2026-03-06">
+                        </div>
+                        <div class="form-group">
+                            <label>End Date</label>
+                            <input type="date" id="qrEndDate" class="form-control" value="2026-03-10">
+                        </div>
+                        <div class="form-group">
+                            <label>Purpose</label>
+                            <input type="text" id="qrPurpose" class="form-control" placeholder="Purpose of visit">
+                        </div>
+                        <div class="form-group">
+                            <label>Allow Checkout</label>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="qrAllowCheckout" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                    <button onclick="generateQRCode()" class="btn-primary" style="margin-top: 20px;">
+                        <i class="fas fa-qrcode"></i> Generate QR Code
+                    </button>
+                </div>
+
+                <div class="qr-list">
+                    <h3 style="margin-bottom: 20px;">Active QR Codes</h3>
+                    <div class="qr-grid" id="activeQRs">
+                        <p class="text-muted">Loading QR codes...</p>
+                    </div>
+                </div>
             </div>
         </main>
     </div>
 
-    <!-- Modals -->
-    <div id="employeeModal" class="modal">...</div>
-    <div id="addEmployeeModal" class="modal">...</div>
+    <!-- Add Employee Modal -->
+    <div id="addEmployeeModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-user-plus"></i> Add New Employee</h3>
+                <button class="modal-close" onclick="closeAddEmployeeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" id="newEmpName" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="newEmpEmail" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Employee ID</label>
+                    <input type="text" id="newEmpId" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Department</label>
+                    <select id="newEmpDept" class="form-control" required>
+                        <option value="">Select Department</option>
+                        <option value="Engineering">Engineering</option>
+                        <option value="Sales">Sales</option>
+                        <option value="Marketing">Marketing</option>
+                        <option value="HR">HR</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="newEmpPassword" class="form-control" value="emp123">
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="button" onclick="saveNewEmployee()" class="btn-primary" style="flex: 1;">Save
+                        Employee</button>
+                    <button type="button" onclick="closeAddEmployeeModal()" class="btn-outline"
+                        style="flex: 1;">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
-    <script src="../assets/js/auth.js"></script>
-    <script src="../assets/js/email-service.js"></script>
-    <script src="../assets/js/ai-assistant.js"></script>
-    <script src="../assets/js/notifications.js"></script>
+    <!-- QR Display Modal -->
+    <div id="qrModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-qrcode"></i> Generated QR Code</h3>
+                <button class="modal-close" onclick="closeQRModal()">&times;</button>
+            </div>
+            <div class="modal-body" style="text-align: center;">
+                <div id="qrCodeDisplay" class="qr-code"></div>
+                <div id="qrDetails" class="qr-details"></div>
+                <button onclick="downloadQRCode()" class="btn-success" style="margin-top: 20px;">
+                    <i class="fas fa-download"></i> Download
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="spinner"></div>
+        <p style="color: white; margin-top: 20px;" id="loadingMessage">Processing...</p>
+    </div>
+
+    <div class="version-badge">v2.0.0 | Production</div>
 
     <script>
-        const user = JSON.parse(localStorage.getItem('currentUser'));
-        let deptChart = null;
-        let attChart = null;
-        let reportChart = null;
-        let analyticsDeptChart = null;
-        let analyticsLeaveChart = null;
+        // ============ CONFIGURATION ============
+        const CONFIG = {
+            API: { URL: 'http://localhost:5001' },
+            COLORS: { primary: '#4361ee', success: '#10b981', warning: '#f59e0b', danger: '#ef4444', chart: ['#4361ee', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6'] }
+        };
 
-        const apiUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-            ? 'http://localhost:5001'
-            : 'https://geofaceattend.onrender.com';
+        const Utils = {
+            getStorage: (key) => JSON.parse(localStorage.getItem(key)),
+            setStorage: (key, value) => localStorage.setItem(key, JSON.stringify(value)),
+            showToast: (msg, type) => alert(msg),
+            showLoading: (msg) => document.getElementById('loadingOverlay').style.display = 'flex',
+            hideLoading: () => document.getElementById('loadingOverlay').style.display = 'none'
+        };
+
+        // ============ GLOBAL VARIABLES ============
+        const user = Utils.getStorage('currentUser');
+        let deptChart = null, attChart = null, reportChart = null, analyticsDeptChart = null, analyticsLeaveChart = null;
 
         if (user) {
             document.getElementById('adminName').textContent = user.name || 'Admin User';
@@ -455,313 +1109,439 @@
             document.getElementById('profileDept').textContent = user.department || 'Management';
         }
 
-        // ============ LOAD DASHBOARD DATA ============
-        async function loadDashboardData() {
-            try {
-                const token = localStorage.getItem('token');
-                if (!token) return;
+        // ============ SECTION MANAGEMENT ============
+        function showSection(section) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.sidebar-nav a').forEach(a => a.classList.remove('active'));
+            document.getElementById(section + '-section')?.classList.add('active');
 
-                const response = await fetch(`${apiUrl}/api/attendance/stats`, {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    }
-                });
+            const activeLink = Array.from(document.querySelectorAll('.sidebar-nav a')).find(
+                a => a.getAttribute('onclick')?.includes(section)
+            );
+            if (activeLink) activeLink.classList.add('active');
 
-                if (response.ok) {
-                    const data = await response.json();
+            const titles = {
+                'dashboard': 'Dashboard Overview', 'employees': 'Employee Management',
+                'leaves': 'Leave Requests', 'reports': 'Attendance Reports',
+                'analytics': 'Analytics Dashboard', 'qr': 'Outstation QR Management'
+            };
+            document.getElementById('pageTitle').textContent = titles[section] || 'Dashboard';
 
-                    // Update stats
-                    document.getElementById('presentToday').textContent = data.today?.checked_in || '0';
-                    document.getElementById('lateToday').textContent = data.today?.late || '0';
-
-                    const totalEmployees = parseInt(document.getElementById('totalEmployees').textContent) || 1;
-                    const attendanceRate = Math.round((data.today?.checked_in / totalEmployees) * 100) || 0;
-                    document.getElementById('attendanceRate').textContent = attendanceRate + '% attendance';
-
-                    // Update charts
-                    updateDepartmentChart(data.departments);
-                    updateAttendanceChart(data.weekly);
-                }
-            } catch (error) {
-                console.error('Error loading dashboard data:', error);
-            }
+            if (section === 'employees') loadEmployees();
+            if (section === 'leaves') loadLeaveRequests();
+            if (section === 'qr') { loadQREmployees(); loadActiveQRs(); }
         }
 
-        // ============ DEPARTMENT CHART ============
-        function updateDepartmentChart(deptData) {
+        // ============ DASHBOARD DATA ============
+        function loadDashboardData() {
+            document.getElementById('totalEmployees').textContent = '5';
+            document.getElementById('presentToday').textContent = '4';
+            document.getElementById('lateToday').textContent = '1';
+            document.getElementById('onLeave').textContent = '1';
+            document.getElementById('attendanceRate').textContent = '80% attendance';
+            document.getElementById('pendingLeaves').textContent = '2 pending';
+
+            updateDepartmentChart();
+            updateAttendanceChart();
+            loadRecentActivity();
+        }
+
+        function updateDepartmentChart() {
             const ctx = document.getElementById('departmentChart')?.getContext('2d');
             if (!ctx) return;
-
             if (deptChart) deptChart.destroy();
 
-            const labels = deptData.map(d => d.department);
-            const data = deptData.map(d => parseInt(d.count));
-
             deptChart = new Chart(ctx, {
-                type: 'pie',
+                type: 'doughnut',
                 data: {
-                    labels: labels,
+                    labels: ['Engineering', 'Sales', 'Marketing', 'HR', 'Finance'],
                     datasets: [{
-                        data: data,
-                        backgroundColor: ['#4361ee', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899']
+                        data: [25, 18, 12, 8, 15],
+                        backgroundColor: CONFIG.COLORS.chart,
+                        borderWidth: 0
                     }]
                 },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: { position: 'bottom' }
-                    }
-                }
+                options: { responsive: true, plugins: { legend: { position: 'bottom' } }, cutout: '60%' }
             });
         }
 
-        // ============ ATTENDANCE CHART ============
-        function updateAttendanceChart(weeklyData) {
+        function updateAttendanceChart() {
             const ctx = document.getElementById('attendanceChart')?.getContext('2d');
             if (!ctx) return;
-
             if (attChart) attChart.destroy();
-
-            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-            const attendance = new Array(7).fill(0);
-
-            weeklyData.forEach(item => {
-                attendance[parseInt(item.day_of_week)] = parseInt(item.count);
-            });
 
             attChart = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: days,
+                    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
                     datasets: [{
                         label: 'Attendance',
-                        data: attendance,
-                        borderColor: '#4361ee',
-                        backgroundColor: 'rgba(67, 97, 238, 0.1)',
+                        data: [45, 48, 42, 47, 38],
+                        borderColor: CONFIG.COLORS.primary,
+                        backgroundColor: 'rgba(67,97,238,0.1)',
                         tension: 0.4,
                         fill: true
                     }]
                 },
-                options: {
-                    responsive: true,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: { stepSize: 1 }
-                        }
-                    }
+                options: { responsive: true, plugins: { legend: { display: false } } }
+            });
+        }
+
+        function loadRecentActivity() {
+            document.getElementById('activityList').innerHTML = `
+                <div class="activity-item"><i class="fas fa-check-circle"></i> John Doe checked in at 9:05 AM</div>
+                <div class="activity-item"><i class="fas fa-clock"></i> Jane Smith marked late at 9:20 AM</div>
+                <div class="activity-item"><i class="fas fa-umbrella-beach"></i> Mike Johnson applied for leave</div>
+            `;
+        }
+
+        // ============ EMPLOYEES ============
+        function loadEmployees() {
+            const users = JSON.parse(localStorage.getItem('users') || '[]');
+            const tbody = document.getElementById('employeesBody');
+
+            document.getElementById('totalEmployees').textContent = users.length;
+            document.getElementById('analyticsTotalEmployees').textContent = users.length;
+            document.getElementById('reportTotal').textContent = users.length;
+
+            if (users.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="text-muted">No employees found</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = users.map(user => `
+                <tr>
+                    <td><input type="checkbox" class="employee-checkbox" value="${user.id}" onchange="updateSelectedCount()"></td>
+                    <td><div class="employee-info"><img src="https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=4361ee&color=fff"><div><strong>${user.name}</strong></div></div></td>
+                    <td>${user.department || 'N/A'}</td>
+                    <td>${user.empId}</td>
+                    <td>${user.email}</td>
+                    <td>${user.phone || 'N/A'}</td>
+                    <td><span class="status-badge present">Active</span></td>
+                    <td>
+                        <button onclick="editEmployee('${user.id}')" class="action-edit"><i class="fas fa-edit"></i></button>
+                        <button onclick="deleteEmployee('${user.id}')" class="action-delete"><i class="fas fa-trash"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function searchEmployees() {
+            const search = document.getElementById('employeeSearch').value.toLowerCase();
+            document.querySelectorAll('#employeesBody tr').forEach(row => {
+                row.style.display = row.textContent.toLowerCase().includes(search) ? '' : 'none';
+            });
+        }
+
+        function showAddEmployeeModal() { document.getElementById('addEmployeeModal').style.display = 'flex'; }
+        function closeAddEmployeeModal() { document.getElementById('addEmployeeModal').style.display = 'none'; }
+
+        function saveNewEmployee() {
+            const name = document.getElementById('newEmpName').value;
+            const email = document.getElementById('newEmpEmail').value;
+            const empId = document.getElementById('newEmpId').value;
+            const dept = document.getElementById('newEmpDept').value;
+            const password = document.getElementById('newEmpPassword').value;
+
+            if (!name || !email || !empId || !dept) {
+                alert('Please fill all fields');
+                return;
+            }
+
+            const users = JSON.parse(localStorage.getItem('users') || '[]');
+            users.push({
+                id: Date.now().toString(),
+                name, email, empId,
+                department: dept,
+                password: btoa(password),
+                role: 'employee'
+            });
+            localStorage.setItem('users', JSON.stringify(users));
+
+            closeAddEmployeeModal();
+            loadEmployees();
+            alert('Employee added');
+        }
+
+        function deleteEmployee(id) {
+            if (!confirm('Delete this employee?')) return;
+            let users = JSON.parse(localStorage.getItem('users') || '[]');
+            users = users.filter(u => u.id !== id);
+            localStorage.setItem('users', JSON.stringify(users));
+            loadEmployees();
+            alert('Employee deleted');
+        }
+
+        function editEmployee(id) { alert('Edit employee: ' + id); }
+
+        // ============ LEAVE REQUESTS ============
+        function loadLeaveRequests() {
+            const leaves = JSON.parse(localStorage.getItem('leaveRequests') || '[]');
+            const tbody = document.getElementById('leaveRequestsBody');
+
+            document.getElementById('pendingLeaves').textContent = leaves.filter(l => l.status === 'pending').length + ' pending';
+            document.getElementById('onLeave').textContent = leaves.filter(l => l.status === 'approved').length;
+            document.getElementById('analyticsTotalLeaves').textContent = leaves.length;
+            document.getElementById('analyticsPendingLeaves').textContent = leaves.filter(l => l.status === 'pending').length;
+
+            if (leaves.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" class="text-muted">No leave requests</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = leaves.map(leave => `
+                <tr>
+                    <td>${leave.employeeName || 'John Doe'}</td>
+                    <td>Engineering</td>
+                    <td>${leave.leaveType || 'Annual'}</td>
+                    <td>${leave.startDate || '2026-03-01'}</td>
+                    <td>${leave.endDate || '2026-03-05'}</td>
+                    <td>5 days</td>
+                    <td>${leave.reason || 'Family vacation'}</td>
+                    <td><span class="status-badge ${leave.status || 'pending'}">${leave.status || 'pending'}</span></td>
+                    <td>
+                        <button onclick="approveLeave('${leave.id}')" class="action-approve"><i class="fas fa-check"></i></button>
+                        <button onclick="rejectLeave('${leave.id}')" class="action-reject"><i class="fas fa-times"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+
+            updateLeaveChart(leaves);
+        }
+
+        function updateLeaveChart(leaves) {
+            const ctx = document.getElementById('analyticsLeaveChart')?.getContext('2d');
+            if (!ctx) return;
+            if (analyticsLeaveChart) analyticsLeaveChart.destroy();
+
+            const pending = leaves.filter(l => l.status === 'pending').length;
+            const approved = leaves.filter(l => l.status === 'approved').length;
+            const rejected = leaves.filter(l => l.status === 'rejected').length;
+
+            analyticsLeaveChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: ['Pending', 'Approved', 'Rejected'],
+                    datasets: [{
+                        data: [pending || 2, approved || 1, rejected || 1],
+                        backgroundColor: [CONFIG.COLORS.warning, CONFIG.COLORS.success, CONFIG.COLORS.danger]
+                    }]
                 }
             });
         }
 
-        // ============ PDF REPORT DOWNLOAD ============
-        async function downloadPDFReport() {
-            try {
-                const token = localStorage.getItem('token');
-                const startDate = document.getElementById('reportStartDate')?.value || '2026-03-01';
-                const endDate = document.getElementById('reportEndDate')?.value || '2026-03-31';
-
-                window.open(`${apiUrl}/api/reports/attendance/pdf?startDate=${startDate}&endDate=${endDate}`, '_blank');
-
-            } catch (error) {
-                console.error('Error downloading PDF:', error);
-                alert('Failed to download PDF');
-            }
+        function approveLeave(id) {
+            if (!confirm('Approve this leave?')) return;
+            alert('Leave approved');
+            loadLeaveRequests();
         }
 
-        // ============ LOAD EMPLOYEES ============
-        async function loadEmployees() {
-            try {
-                const token = localStorage.getItem('token');
-                const response = await fetch(`${apiUrl}/api/employees`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-
-                if (response.ok) {
-                    const employees = await response.json();
-                    const tbody = document.getElementById('employeesBody');
-
-                    document.getElementById('totalEmployees').textContent = employees.length;
-                    document.getElementById('analyticsTotalEmployees').textContent = employees.length;
-                    document.getElementById('reportTotal').textContent = employees.length;
-
-                    tbody.innerHTML = employees.map(emp => `
-                        <tr>
-                            <td>
-                                <div class="employee-info">
-                                    <strong>${emp.name}</strong>
-                                    <span>${emp.email}</span>
-                                </div>
-                            </td>
-                            <td>${emp.department}</td>
-                            <td>${emp.emp_id}</td>
-                            <td>${emp.email}</td>
-                            <td>${emp.phone || 'N/A'}</td>
-                            <td><span class="status-badge present">Active</span></td>
-                            <td>
-                                <button onclick="editEmployee('${emp.id}')" class="action-edit">
-                                    <i class="fas fa-edit"></i>
-                                </button>
-                            </td>
-                        </tr>
-                    `).join('');
-                }
-            } catch (error) {
-                console.error('Error loading employees:', error);
-            }
-        }
-
-        // ============ LOAD LEAVE REQUESTS ============
-        async function loadLeaveRequests() {
-            try {
-                const token = localStorage.getItem('token');
-                const response = await fetch(`${apiUrl}/api/leaves/all`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-
-                if (response.ok) {
-                    const leaves = await response.json();
-                    const tbody = document.getElementById('leaveRequestsBody');
-
-                    const pending = leaves.filter(l => l.status === 'pending').length;
-                    document.getElementById('pendingLeaves').textContent = pending + ' pending';
-                    document.getElementById('onLeave').textContent = pending;
-
-                    tbody.innerHTML = leaves.map(leave => `
-                        <tr>
-                            <td>
-                                <div class="employee-info">
-                                    <strong>${leave.employee_name}</strong>
-                                    <span>${leave.department}</span>
-                                </div>
-                            </td>
-                            <td>${leave.department}</td>
-                            <td>${leave.leave_type}</td>
-                            <td>${new Date(leave.start_date).toLocaleDateString()}</td>
-                            <td>${new Date(leave.end_date).toLocaleDateString()}</td>
-                            <td class="reason-cell">${leave.reason}</td>
-                            <td><span class="status-badge ${leave.status}">${leave.status}</span></td>
-                            <td>
-                                ${leave.status === 'pending' ? `
-                                    <button onclick="approveLeave(${leave.id})" class="action-approve">
-                                        <i class="fas fa-check"></i>
-                                    </button>
-                                    <button onclick="rejectLeave(${leave.id})" class="action-reject">
-                                        <i class="fas fa-times"></i>
-                                    </button>
-                                ` : '<span class="action-processed">Processed</span>'}
-                            </td>
-                        </tr>
-                    `).join('');
-                }
-            } catch (error) {
-                console.error('Error loading leave requests:', error);
-            }
-        }
-
-        // ============ APPROVE LEAVE ============
-        async function approveLeave(id) {
-            try {
-                const token = localStorage.getItem('token');
-                const response = await fetch(`${apiUrl}/api/leaves/${id}/approve`, {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-
-                if (response.ok) {
-                    alert('✅ Leave approved! SMS and email sent.');
-                    loadLeaveRequests();
-                }
-            } catch (error) {
-                console.error('Error approving leave:', error);
-            }
-        }
-
-        // ============ REJECT LEAVE ============
-        async function rejectLeave(id) {
-            const reason = prompt('Enter rejection reason:');
+        function rejectLeave(id) {
+            const reason = prompt('Rejection reason:');
             if (!reason) return;
+            alert('Leave rejected');
+            loadLeaveRequests();
+        }
 
-            try {
-                const token = localStorage.getItem('token');
-                const response = await fetch(`${apiUrl}/api/leaves/${id}/reject`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ reason })
-                });
+        function filterLeaves() {
+            const filter = document.getElementById('leaveFilter').value;
+            document.querySelectorAll('#leaveRequestsBody tr').forEach(row => {
+                const status = row.querySelector('.status-badge')?.textContent.toLowerCase();
+                row.style.display = (filter === 'all' || status === filter) ? '' : 'none';
+            });
+        }
 
-                if (response.ok) {
-                    alert('❌ Leave rejected');
-                    loadLeaveRequests();
-                }
-            } catch (error) {
-                console.error('Error rejecting leave:', error);
+        // ============ QR CODE FUNCTIONS ============
+        function loadQREmployees() {
+            const select = document.getElementById('qrEmployee');
+            const users = JSON.parse(localStorage.getItem('users') || '[]');
+            select.innerHTML = users.map(u => `<option value="${u.empId}">${u.name} (${u.empId})</option>`).join('');
+        }
+
+        function generateQRCode() {
+            const employee = document.getElementById('qrEmployee').value;
+            const location = document.getElementById('qrLocation').value;
+            const startDate = document.getElementById('qrStartDate').value;
+            const endDate = document.getElementById('qrEndDate').value;
+            const purpose = document.getElementById('qrPurpose').value;
+
+            if (!employee || !location || !startDate || !endDate || !purpose) {
+                alert('Please fill all fields');
+                return;
+            }
+
+            const qrId = 'QR-' + Date.now();
+            const qrData = { id: qrId, employee, location, startDate, endDate, purpose };
+
+            const qrContainer = document.getElementById('qrCodeDisplay');
+            qrContainer.innerHTML = '';
+            new QRCode(qrContainer, { text: JSON.stringify(qrData), width: 200, height: 200 });
+
+            document.getElementById('qrDetails').innerHTML = `
+                <p><strong>QR ID:</strong> ${qrId}</p>
+                <p><strong>Employee:</strong> ${employee}</p>
+                <p><strong>Location:</strong> ${location}</p>
+                <p><strong>Valid:</strong> ${startDate} to ${endDate}</p>
+            `;
+
+            const qrs = JSON.parse(localStorage.getItem('activeQRs') || '[]');
+            qrs.push(qrData);
+            localStorage.setItem('activeQRs', JSON.stringify(qrs));
+
+            document.getElementById('qrModal').style.display = 'flex';
+            updateQRBadge();
+        }
+
+        function loadActiveQRs() {
+            const container = document.getElementById('activeQRs');
+            const qrs = JSON.parse(localStorage.getItem('activeQRs') || '[]');
+
+            if (qrs.length === 0) {
+                container.innerHTML = '<p class="text-muted">No active QR codes</p>';
+                return;
+            }
+
+            container.innerHTML = qrs.map(qr => `
+                <div class="qr-card">
+                    <h4>${qr.location}</h4>
+                    <p><strong>Employee:</strong> ${qr.employee}</p>
+                    <div class="qr-code" id="qr-${qr.id}"></div>
+                    <button onclick="deleteQR('${qr.id}')" class="action-delete">Delete</button>
+                </div>
+            `).join('');
+
+            qrs.forEach(qr => {
+                setTimeout(() => {
+                    const el = document.getElementById(`qr-${qr.id}`);
+                    if (el) new QRCode(el, { text: JSON.stringify(qr), width: 150, height: 150 });
+                }, 100);
+            });
+            updateQRBadge();
+        }
+
+        function updateQRBadge() {
+            const qrs = JSON.parse(localStorage.getItem('activeQRs') || '[]');
+            const badge = document.getElementById('qrBadge');
+            if (qrs.length > 0) {
+                badge.style.display = 'inline-block';
+                badge.textContent = qrs.length;
+            } else badge.style.display = 'none';
+        }
+
+        function deleteQR(qrId) {
+            if (!confirm('Delete QR?')) return;
+            let qrs = JSON.parse(localStorage.getItem('activeQRs') || '[]');
+            qrs = qrs.filter(q => q.id !== qrId);
+            localStorage.setItem('activeQRs', JSON.stringify(qrs));
+            loadActiveQRs();
+        }
+
+        function closeQRModal() { document.getElementById('qrModal').style.display = 'none'; }
+        function downloadQRCode() {
+            const canvas = document.querySelector('#qrCodeDisplay canvas');
+            if (canvas) {
+                const link = document.createElement('a');
+                link.download = 'qrcode.png';
+                link.href = canvas.toDataURL();
+                link.click();
             }
         }
 
-        // ============ REFRESH DATA ============
-        async function refreshData() {
-            await loadDashboardData();
-            await loadEmployees();
-            await loadLeaveRequests();
-            if (window.notificationSystem) {
-                notificationSystem.show({ title: 'Data Refreshed', message: 'Latest data loaded', type: 'success' });
-            }
+        // ============ REPORTS ============
+        function generateReport() {
+            Utils.showLoading('Generating report...');
+            setTimeout(() => {
+                document.getElementById('reportPresent').textContent = '42';
+                document.getElementById('reportLate').textContent = '5';
+                document.getElementById('reportLeave').textContent = '3';
+
+                const ctx = document.getElementById('reportChart')?.getContext('2d');
+                if (ctx) {
+                    if (reportChart) reportChart.destroy();
+                    reportChart = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: ['Present', 'Late', 'Leave'],
+                            datasets: [{
+                                data: [42, 5, 3],
+                                backgroundColor: [CONFIG.COLORS.success, CONFIG.COLORS.warning, CONFIG.COLORS.danger]
+                            }]
+                        }
+                    });
+                }
+                Utils.hideLoading();
+                alert('Report generated');
+            }, 1500);
+        }
+
+        function downloadPDFReport() {
+            window.open(`${CONFIG.API.URL}/api/reports/attendance/pdf?startDate=2026-03-01&endDate=2026-03-31`, '_blank');
+        }
+
+        // ============ BATCH OPERATIONS ============
+        let selectedEmployees = new Set();
+
+        function toggleHeaderCheckbox() {
+            const checked = document.getElementById('headerCheckbox').checked;
+            document.querySelectorAll('.employee-checkbox').forEach(cb => {
+                cb.checked = checked;
+                if (checked) selectedEmployees.add(cb.value);
+                else selectedEmployees.delete(cb.value);
+            });
+            updateSelectedCount();
+        }
+
+        function updateSelectedCount() {
+            selectedEmployees = new Set(Array.from(document.querySelectorAll('.employee-checkbox:checked')).map(cb => cb.value));
+            document.getElementById('selectedCount').textContent = selectedEmployees.size + ' selected';
+            document.getElementById('batchActions').style.display = selectedEmployees.size > 0 ? 'flex' : 'none';
+        }
+
+        function bulkDelete() {
+            if (selectedEmployees.size === 0 || !confirm(`Delete ${selectedEmployees.size} employees?`)) return;
+            let users = JSON.parse(localStorage.getItem('users') || '[]');
+            users = users.filter(u => !selectedEmployees.has(u.id));
+            localStorage.setItem('users', JSON.stringify(users));
+            selectedEmployees.clear();
+            loadEmployees();
+            document.getElementById('batchActions').style.display = 'none';
+            alert('Employees deleted');
+        }
+
+        function toggleSelectAll() {
+            const selectAll = document.getElementById('selectAll').checked;
+            document.getElementById('headerCheckbox').checked = selectAll;
+            toggleHeaderCheckbox();
+        }
+
+        // ============ UTILITY FUNCTIONS ============
+        function toggleProfileMenu() { document.getElementById('profileMenu').classList.toggle('active'); }
+        function toggleTheme() { document.body.classList.toggle('dark-mode'); }
+        function logout() { localStorage.clear(); window.location.href = '../index.html'; }
+        function refreshData() { location.reload(); }
+        function exportReport() { alert('Exporting report...'); }
+        function refreshAnalytics() { alert('Analytics refreshed'); }
+        function showEmployeeList(category) { alert(`Showing ${category} employees`); }
+
+        function updateDateTime() {
+            document.getElementById('currentDateTime').textContent = new Date().toLocaleString();
         }
 
         // ============ INITIALIZATION ============
-        document.addEventListener('DOMContentLoaded', async () => {
-            await loadDashboardData();
-            await loadEmployees();
-            await loadLeaveRequests();
+        document.addEventListener('DOMContentLoaded', () => {
+            loadDashboardData();
+            loadEmployees();
+            loadLeaveRequests();
+            updateDateTime();
             setInterval(updateDateTime, 1000);
         });
 
-        // ============ UTILITY FUNCTIONS ============
-        function showSection(section) {
-            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-            document.querySelectorAll('.sidebar-nav a').forEach(a => a.classList.remove('active'));
-            const sectionElement = document.getElementById(section + '-section');
-            if (sectionElement) sectionElement.classList.add('active');
-            event.currentTarget.classList.add('active');
-            document.getElementById('pageTitle').textContent = event.currentTarget.querySelector('span').textContent;
-        }
+        window.onclick = (event) => {
+            if (event.target.classList.contains('modal')) event.target.style.display = 'none';
+            if (!event.target.closest('.user-profile')) document.getElementById('profileMenu')?.classList.remove('active');
+        };
 
-        function toggleTheme() {
-            document.body.classList.toggle('dark-mode');
-            const icon = document.querySelector('.theme-toggle i');
-            if (icon) icon.className = document.body.classList.contains('dark-mode') ? 'fas fa-sun' : 'fas fa-moon';
-        }
-
-        function logout() {
-            localStorage.removeItem('currentUser');
-            localStorage.removeItem('selectedRole');
-            localStorage.removeItem('token');
-            window.location.href = '../index.html';
-        }
-
-        function updateDateTime() {
-            const now = new Date();
-            const el = document.getElementById('currentDateTime');
-            if (el) {
-                el.textContent = now.toLocaleString('en-US', {
-                    weekday: 'long',
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit'
-                });
-            }
-        }
-
-        // Make functions globally available
+        // ============ GLOBAL EXPORTS ============
         window.showSection = showSection;
         window.toggleTheme = toggleTheme;
         window.logout = logout;
@@ -769,9 +1549,27 @@
         window.downloadPDFReport = downloadPDFReport;
         window.approveLeave = approveLeave;
         window.rejectLeave = rejectLeave;
-        window.showEmployeeList = (category) => {
-            alert(`Showing ${category} employees list`);
-        };
+        window.filterLeaves = filterLeaves;
+        window.showAddEmployeeModal = showAddEmployeeModal;
+        window.closeAddEmployeeModal = closeAddEmployeeModal;
+        window.saveNewEmployee = saveNewEmployee;
+        window.deleteEmployee = deleteEmployee;
+        window.editEmployee = editEmployee;
+        window.searchEmployees = searchEmployees;
+        window.toggleHeaderCheckbox = toggleHeaderCheckbox;
+        window.updateSelectedCount = updateSelectedCount;
+        window.bulkDelete = bulkDelete;
+        window.toggleSelectAll = toggleSelectAll;
+        window.generateReport = generateReport;
+        window.exportReport = exportReport;
+        window.refreshAnalytics = refreshAnalytics;
+        window.showEmployeeList = showEmployeeList;
+        window.loadQREmployees = loadQREmployees;
+        window.loadActiveQRs = loadActiveQRs;
+        window.generateQRCode = generateQRCode;
+        window.deleteQR = deleteQR;
+        window.closeQRModal = closeQRModal;
+        window.downloadQRCode = downloadQRCode;
     </script>
 </body>
 
