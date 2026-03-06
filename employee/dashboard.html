@@ -1224,7 +1224,9 @@
     <script>
         // ============ CONFIGURATION ============
         const CONFIG = {
-            API: { URL: 'http://localhost:5001' },
+            API: {
+                URL: window.API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5001' : 'https://geofaceattend-api.onrender.com')
+            },
             FACE: { MIN_CONFIDENCE: 0.7, CAMERA: { width: 640, height: 480, facingMode: 'user' } },
             ATTENDANCE: { OFFICE_LOCATIONS: [{ name: 'Main Office', lat: 22.859181, lng: 75.954550, radius: 1000 }] }
         };

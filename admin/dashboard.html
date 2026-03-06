@@ -1085,8 +1085,16 @@
     <script>
         // ============ CONFIGURATION ============
         const CONFIG = {
-            API: { URL: 'http://localhost:5001' },
-            COLORS: { primary: '#4361ee', success: '#10b981', warning: '#f59e0b', danger: '#ef4444', chart: ['#4361ee', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6'] }
+            API: {
+                URL: window.API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5001' : 'https://geofaceattend-api.onrender.com')
+            },
+            COLORS: {
+                primary: '#4361ee',
+                success: '#10b981',
+                warning: '#f59e0b',
+                danger: '#ef4444',
+                chart: ['#4361ee', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6']
+            }
         };
 
         const Utils = {
