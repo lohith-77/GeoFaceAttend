@@ -1,18 +1,3 @@
-# Dependencies
-node_modules/
-.env
-
-# Logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Runtime data
-pids
-*.pid
-*.seed
-*.pid.lock
-
-# Misc
-.DS_Store"node_modules/" 
-"email-api/node_modules/" 
+node_modules/ 
+email-api/node_modules/ 
+.vscode/ 

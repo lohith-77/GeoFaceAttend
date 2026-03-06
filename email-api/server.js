@@ -8,11 +8,9 @@ const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const formData = require('form-data');
-const Mailgun = require('mailgun.js');
 const { Pool } = require('pg');
 const PDFDocument = require('pdfkit');
-const twilio = require('twilio');
+const nodemailer = require('nodemailer');
 
 // Create Express app
 const app = express();
@@ -20,22 +18,7 @@ const PORT = process.env.PORT || 5001;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-key-change-this';
 const saltRounds = 10;
 
-// Initialize Mailgun
-const mailgun = new Mailgun(formData);
-const mg = mailgun.client({
-    username: 'api',
-    key: process.env.MAILGUN_API_KEY,
-    url: process.env.MAILGUN_URL || 'https://api.mailgun.net'
-});
-
-// Initialize Twilio (for SMS)
-const twilioClient = twilio(
-    process.env.TWILIO_ACCOUNT_SID,
-    process.env.TWILIO_AUTH_TOKEN
-);
-
 // ============ DATABASE CONNECTION ============
-
 let pool;
 if (process.env.NODE_ENV === 'production') {
     pool = new Pool({
@@ -55,13 +38,38 @@ if (process.env.NODE_ENV === 'production') {
 // Test database connection
 pool.connect((err, client, release) => {
     if (err) {
-        return console.error('❌ Database connection error:', err.stack);
+        console.error('❌ Database connection error:', err.stack);
+        return;
     }
     console.log('✅ Database connected successfully');
     release();
 });
 
-// Helper function for queries
+// ============ GMAIL TRANSPORTER ============
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+    },
+    tls: {
+        rejectUnauthorized: false
+    }
+});
+
+// Verify email connection (don't let it crash the server)
+transporter.verify((error, success) => {
+    if (error) {
+        console.log('⚠️ Email notifications disabled - Gmail configuration issue');
+        console.log('   To enable emails, update your .env with correct Gmail credentials');
+    } else {
+        console.log('✅ Gmail transporter ready');
+    }
+});
+
+// ============ HELPER FUNCTIONS ============
+
+// Query helper
 async function query(text, params) {
     try {
         const res = await pool.query(text, params);
@@ -72,103 +80,52 @@ async function query(text, params) {
     }
 }
 
-// ============ CREATE TABLES ============
+// Authentication middleware
+function authenticateToken(req, res, next) {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
 
-async function createTables() {
+    if (!token) {
+        return res.status(401).json({ success: false, error: 'No token provided' });
+    }
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) {
+            return res.status(403).json({ success: false, error: 'Invalid or expired token' });
+        }
+        req.user = user;
+        next();
+    });
+}
+
+// Admin authorization
+function requireAdmin(req, res, next) {
+    if (req.user.role !== 'admin') {
+        return res.status(403).json({ success: false, error: 'Admin access required' });
+    }
+    next();
+}
+
+// Send email function
+async function sendEmail(to, subject, text) {
     try {
-        // Users table
-        await query(`
-            CREATE TABLE IF NOT EXISTS users (
-                id SERIAL PRIMARY KEY,
-                emp_id VARCHAR(50) UNIQUE NOT NULL,
-                name VARCHAR(100) NOT NULL,
-                email VARCHAR(100) UNIQUE NOT NULL,
-                phone VARCHAR(20),
-                password VARCHAR(255) NOT NULL,
-                department VARCHAR(50),
-                role VARCHAR(20) DEFAULT 'employee',
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        `);
+        const mailOptions = {
+            from: `"${process.env.EMAIL_FROM_NAME || 'GeoFaceAttend'}" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+            to: to,
+            subject: subject,
+            text: text
+        };
 
-        // Attendance table
-        await query(`
-            CREATE TABLE IF NOT EXISTS attendance (
-                id SERIAL PRIMARY KEY,
-                emp_id VARCHAR(50) REFERENCES users(emp_id),
-                check_in TIMESTAMP,
-                check_out TIMESTAMP,
-                location VARCHAR(255),
-                method VARCHAR(50),
-                hours DECIMAL(5,2),
-                date DATE DEFAULT CURRENT_DATE,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        `);
-
-        // Leave requests table
-        await query(`
-            CREATE TABLE IF NOT EXISTS leave_requests (
-                id SERIAL PRIMARY KEY,
-                emp_id VARCHAR(50) REFERENCES users(emp_id),
-                leave_type VARCHAR(50),
-                start_date DATE,
-                end_date DATE,
-                reason TEXT,
-                status VARCHAR(20) DEFAULT 'pending',
-                applied_on TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                approved_by VARCHAR(50),
-                approved_on TIMESTAMP,
-                rejection_reason TEXT
-            )
-        `);
-
-        // QR codes table
-        await query(`
-            CREATE TABLE IF NOT EXISTS qr_codes (
-                id SERIAL PRIMARY KEY,
-                qr_id VARCHAR(100) UNIQUE,
-                emp_id VARCHAR(50) REFERENCES users(emp_id),
-                location VARCHAR(255),
-                start_date DATE,
-                end_date DATE,
-                purpose TEXT,
-                valid_hours INTEGER,
-                allow_checkout BOOLEAN DEFAULT true,
-                generated_by VARCHAR(50),
-                generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                expires_at TIMESTAMP,
-                is_active BOOLEAN DEFAULT true
-            )
-        `);
-
-        // Outstation history table
-        await query(`
-            CREATE TABLE IF NOT EXISTS outstation_history (
-                id SERIAL PRIMARY KEY,
-                emp_id VARCHAR(50) REFERENCES users(emp_id),
-                qr_id VARCHAR(100),
-                location VARCHAR(255),
-                check_in TIMESTAMP,
-                check_out TIMESTAMP,
-                purpose TEXT,
-                hours DECIMAL(5,2),
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        `);
-
-        console.log('✅ All tables created successfully');
+        const info = await transporter.sendMail(mailOptions);
+        console.log('✅ Email sent:', info.messageId);
+        return { success: true, messageId: info.messageId };
     } catch (error) {
-        console.error('❌ Error creating tables:', error);
+        console.error('❌ Email sending failed:', error);
+        return { success: false, error: error.message };
     }
 }
 
-// Call this when server starts
-createTables();
-
 // ============ SECURITY MIDDLEWARE ============
-
 app.use(helmet());
 
 const allowedOrigins = process.env.ALLOWED_ORIGINS
@@ -190,16 +147,15 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 
 // ============ RATE LIMITING ============
-
 const generalLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 100,
+    windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
+    max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
     message: { success: false, error: 'Too many requests, please try again later.' }
 });
 
 const emailLimiter = rateLimit({
     windowMs: 60 * 60 * 1000,
-    max: 20,
+    max: parseInt(process.env.EMAIL_RATE_LIMIT_MAX) || 20,
     message: { success: false, error: 'Email rate limit exceeded. Please try again later.' }
 });
 
@@ -207,61 +163,21 @@ app.use(generalLimiter);
 app.use('/send-email', emailLimiter);
 
 // ============ TEST ENDPOINTS ============
-
 app.get('/test', (req, res) => {
     res.json({ success: true, message: '✅ Server is running!', time: new Date() });
 });
 
 app.get('/health', (req, res) => {
-    res.json({ status: 'OK', time: new Date(), version: '1.0.0' });
+    res.json({
+        status: 'OK',
+        time: new Date(),
+        version: '2.0.0',
+        database: 'connected',
+        email: 'configured'
+    });
 });
 
-// ============ HELPER FUNCTIONS ============
-
-function authenticateToken(req, res, next) {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-
-    if (!token) {
-        return res.status(401).json({ success: false, error: 'No token provided' });
-    }
-
-    jwt.verify(token, JWT_SECRET, (err, user) => {
-        if (err) {
-            return res.status(403).json({ success: false, error: 'Invalid or expired token' });
-        }
-        req.user = user;
-        next();
-    });
-}
-
-// ============ USERS ============
-
-const users = [
-    {
-        id: '1',
-        empId: 'ADM001',
-        name: 'Admin User',
-        email: 'admin@company.com',
-        phone: '+1234567890',
-        password: '$2b$10$X7VYx8fK5LmNpQrStUvWxYzAbCdEfGhIjKlMnOpQrStUvWxYz',
-        department: 'Management',
-        role: 'admin'
-    },
-    {
-        id: '2',
-        empId: 'EMP001',
-        name: 'John Employee',
-        email: 'john@company.com',
-        phone: '+1234567891',
-        password: '$2b$10$Y8WZx9gL6MnOpQrStUvWxYzAbCdEfGhIjKlMnOpQrStUvWxYa',
-        department: 'Engineering',
-        role: 'employee'
-    }
-];
-
 // ============ AUTH ENDPOINTS ============
-
 app.post('/login', async (req, res) => {
     try {
         const { empId, password } = req.body;
@@ -270,7 +186,8 @@ app.post('/login', async (req, res) => {
             return res.status(400).json({ success: false, error: 'Missing employee ID or password' });
         }
 
-        const user = users.find(u => u.empId === empId);
+        const result = await query('SELECT * FROM users WHERE emp_id = $1', [empId]);
+        const user = result.rows[0];
 
         if (!user) {
             return res.status(401).json({ success: false, error: 'Invalid credentials' });
@@ -283,14 +200,14 @@ app.post('/login', async (req, res) => {
         }
 
         const token = jwt.sign(
-            { id: user.id, empId: user.empId, name: user.name, role: user.role },
+            { id: user.id, empId: user.emp_id, name: user.name, role: user.role },
             JWT_SECRET,
             { expiresIn: '24h' }
         );
 
         const userData = {
             id: user.id,
-            empId: user.empId,
+            empId: user.emp_id,
             name: user.name,
             email: user.email,
             phone: user.phone,
@@ -306,42 +223,178 @@ app.post('/login', async (req, res) => {
     }
 });
 
-// ============ ATTENDANCE STATS FOR CHARTS ============
+// ============ LEAVE MANAGEMENT ============
+app.post('/api/leaves/:id/approve', authenticateToken, requireAdmin, async (req, res) => {
+    try {
+        const leaveId = req.params.id;
 
+        // Get leave details with employee info
+        const leaveResult = await query(`
+            SELECT lr.*, u.name, u.email, u.emp_id 
+            FROM leave_requests lr
+            JOIN users u ON lr.emp_id = u.emp_id
+            WHERE lr.id = $1
+        `, [leaveId]);
+
+        if (leaveResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Leave request not found' });
+        }
+
+        const leave = leaveResult.rows[0];
+
+        // Update leave status
+        await query(
+            `UPDATE leave_requests 
+             SET status = 'approved', 
+                 approved_by = $1, 
+                 approved_on = CURRENT_TIMESTAMP
+             WHERE id = $2`,
+            [req.user.empId, leaveId]
+        );
+
+        // Calculate duration
+        const start = new Date(leave.start_date);
+        const end = new Date(leave.end_date);
+        const diffTime = Math.abs(end - start);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+        // Send email notification
+        if (leave.email) {
+            const emailBody = `Hello ${leave.name},
+
+Your leave request has been APPROVED.
+
+━━━━━━━━━━━━━━━━━━━━━━
+📅 From: ${leave.start_date}
+📅 To: ${leave.end_date}
+📊 Duration: ${diffDays} days
+📝 Type: ${leave.leave_type}
+📋 Reason: ${leave.reason}
+━━━━━━━━━━━━━━━━━━━━━━
+
+Best regards,
+GeoFaceAttend Team`;
+
+            await sendEmail(leave.email, '✅ LEAVE APPROVED', emailBody);
+        }
+
+        res.json({ success: true, message: 'Leave approved and email sent' });
+
+    } catch (error) {
+        console.error('Error approving leave:', error);
+        res.status(500).json({ error: 'Failed to approve leave' });
+    }
+});
+
+app.post('/api/leaves/:id/reject', authenticateToken, requireAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { reason } = req.body;
+
+        if (!reason) {
+            return res.status(400).json({ error: 'Rejection reason is required' });
+        }
+
+        // Get leave details with employee info
+        const leaveResult = await query(`
+            SELECT lr.*, u.name, u.email 
+            FROM leave_requests lr
+            JOIN users u ON lr.emp_id = u.emp_id
+            WHERE lr.id = $1
+        `, [id]);
+
+        if (leaveResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Leave request not found' });
+        }
+
+        const leave = leaveResult.rows[0];
+
+        // Update leave status
+        await query(
+            `UPDATE leave_requests 
+             SET status = 'rejected', 
+                 rejection_reason = $1,
+                 reviewed_by = $2,
+                 reviewed_at = CURRENT_TIMESTAMP
+             WHERE id = $3`,
+            [reason, req.user.empId, id]
+        );
+
+        // Calculate duration
+        const start = new Date(leave.start_date);
+        const end = new Date(leave.end_date);
+        const diffTime = Math.abs(end - start);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+        // Send email notification
+        if (leave.email) {
+            const emailBody = `Hello ${leave.name},
+
+Your leave request has been REJECTED.
+
+━━━━━━━━━━━━━━━━━━━━━━
+📅 From: ${leave.start_date}
+📅 To: ${leave.end_date}
+📊 Duration: ${diffDays} days
+📝 Type: ${leave.leave_type}
+❌ Reason: ${reason}
+━━━━━━━━━━━━━━━━━━━━━━
+
+Please contact your manager for more information.
+
+Best regards,
+GeoFaceAttend Team`;
+
+            await sendEmail(leave.email, '❌ LEAVE REJECTED', emailBody);
+        }
+
+        res.json({ success: true, message: 'Leave rejected and email sent' });
+
+    } catch (error) {
+        console.error('Error rejecting leave:', error);
+        res.status(500).json({ error: 'Failed to reject leave' });
+    }
+});
+
+// ============ ATTENDANCE STATS ============
 app.get('/api/attendance/stats', authenticateToken, async (req, res) => {
     try {
-        const empId = req.user.empId;
-
-        // Weekly attendance data
-        const weeklyData = await query(`
+        // Get today's stats
+        const todayResult = await query(`
             SELECT 
-                EXTRACT(DOW FROM check_in) as day_of_week,
-                COUNT(*) as count,
-                AVG(EXTRACT(HOUR FROM (check_out - check_in))) as avg_hours
+                COUNT(*) as checked_in,
+                SUM(CASE WHEN is_late THEN 1 ELSE 0 END) as late
             FROM attendance 
-            WHERE emp_id = $1 
-            AND check_in >= CURRENT_DATE - INTERVAL '7 days'
-            GROUP BY EXTRACT(DOW FROM check_in)
+            WHERE date = CURRENT_DATE
+        `);
+
+        // Get weekly data
+        const weeklyResult = await query(`
+            SELECT 
+                EXTRACT(DOW FROM date) as day_of_week,
+                COUNT(*) as count
+            FROM attendance 
+            WHERE date >= CURRENT_DATE - INTERVAL '7 days'
+            GROUP BY EXTRACT(DOW FROM date)
             ORDER BY day_of_week
-        `, [empId]);
+        `);
 
-        // Monthly attendance trend
-        const monthlyData = await query(`
+        // Get department distribution
+        const deptResult = await query(`
             SELECT 
-                DATE_TRUNC('week', check_in) as week,
-                COUNT(*) as days_present,
-                AVG(EXTRACT(HOUR FROM (check_out - check_in))) as avg_hours
-            FROM attendance 
-            WHERE emp_id = $1 
-            AND check_in >= CURRENT_DATE - INTERVAL '30 days'
-            GROUP BY DATE_TRUNC('week', check_in)
-            ORDER BY week
-        `, [empId]);
+                department,
+                COUNT(*) as count
+            FROM users
+            WHERE role = 'employee'
+            GROUP BY department
+        `);
 
         res.json({
-            weekly: weeklyData.rows,
-            monthly: monthlyData.rows
+            today: todayResult.rows[0] || { checked_in: 0, late: 0 },
+            weekly: weeklyResult.rows,
+            departments: deptResult.rows
         });
+
     } catch (error) {
         console.error('Error fetching stats:', error);
         res.status(500).json({ error: 'Failed to fetch statistics' });
@@ -349,13 +402,11 @@ app.get('/api/attendance/stats', authenticateToken, async (req, res) => {
 });
 
 // ============ PDF REPORT GENERATION ============
-
 app.get('/api/reports/attendance/pdf', authenticateToken, async (req, res) => {
     try {
         const { startDate, endDate } = req.query;
-        const empId = req.user.role === 'admin' ? null : req.user.empId;
 
-        let queryText = `
+        const result = await query(`
             SELECT 
                 u.name,
                 u.emp_id,
@@ -366,18 +417,8 @@ app.get('/api/reports/attendance/pdf', authenticateToken, async (req, res) => {
             LEFT JOIN attendance a ON u.emp_id = a.emp_id 
                 AND a.date BETWEEN $1 AND $2
             WHERE u.role = 'employee'
-        `;
-
-        const params = [startDate, endDate];
-
-        if (empId) {
-            queryText += ` AND u.emp_id = $3`;
-            params.push(empId);
-        }
-
-        queryText += ` GROUP BY u.id, u.name, u.emp_id, u.department`;
-
-        const result = await query(queryText, params);
+            GROUP BY u.id, u.name, u.emp_id, u.department
+        `, [startDate, endDate]);
 
         // Create PDF
         const doc = new PDFDocument();
@@ -417,7 +458,6 @@ app.get('/api/reports/attendance/pdf', authenticateToken, async (req, res) => {
         doc.moveDown();
         doc.font('Helvetica-Bold');
         doc.text(`Total Employees: ${result.rows.length}`);
-        doc.text(`Total Present Days: ${result.rows.reduce((sum, r) => sum + parseInt(r.present_days), 0)}`);
         doc.text(`Generated on: ${new Date().toLocaleString()}`);
 
         doc.end();
@@ -428,106 +468,66 @@ app.get('/api/reports/attendance/pdf', authenticateToken, async (req, res) => {
     }
 });
 
-// ============ SMS NOTIFICATIONS ============
-
-app.post('/api/send-sms', authenticateToken, async (req, res) => {
-    try {
-        const { to, message } = req.body;
-
-        if (!to || !message) {
-            return res.status(400).json({ error: 'Missing phone number or message' });
-        }
-
-        const result = await twilioClient.messages.create({
-            body: message,
-            from: process.env.TWILIO_PHONE_NUMBER,
-            to: to
-        });
-
-        res.json({ success: true, messageId: result.sid });
-
-    } catch (error) {
-        console.error('❌ SMS error:', error);
-        res.status(500).json({ error: 'Failed to send SMS' });
-    }
-});
-
-// ============ LEAVE APPROVAL WITH SMS ============
-
-app.post('/api/leaves/:id/approve', authenticateToken, async (req, res) => {
-    try {
-        if (req.user.role !== 'admin') {
-            return res.status(403).json({ error: 'Unauthorized' });
-        }
-
-        const leaveId = req.params.id;
-        const leave = {
-            emp_id: 'EMP001',
-            start_date: '2026-03-01',
-            end_date: '2026-03-05',
-            email: 'john@company.com',
-            phone: '+1234567891'
-        };
-
-        // Send SMS notification
-        if (leave.phone) {
-            const smsMessage = `GeoFaceAttend: Your leave request from ${leave.start_date} to ${leave.end_date} has been APPROVED.`;
-
-            await twilioClient.messages.create({
-                body: smsMessage,
-                from: process.env.TWILIO_PHONE_NUMBER,
-                to: leave.phone
-            });
-        }
-
-        // Send email via Mailgun
-        if (leave.email) {
-            await mg.messages.create(process.env.MAILGUN_DOMAIN, {
-                from: `GeoFaceAttend <noreply@${process.env.MAILGUN_DOMAIN}>`,
-                to: [leave.email],
-                subject: 'Leave Request Approved',
-                text: `Your leave request from ${leave.start_date} to ${leave.end_date} has been approved.`
-            });
-        }
-
-        res.json({ success: true, message: 'Leave approved and notifications sent' });
-
-    } catch (error) {
-        console.error('Error approving leave:', error);
-        res.status(500).json({ error: 'Failed to approve leave' });
-    }
-});
-
-// ============ EMAIL SENDING ============
-
+// ============ EMAIL SENDING ENDPOINT ============
 app.post('/send-email', authenticateToken, async (req, res) => {
     try {
         const { to, subject, text } = req.body;
 
         if (!to || !subject || !text) {
-            return res.status(400).json({ success: false, error: 'Missing fields' });
+            return res.status(400).json({ success: false, error: 'Missing required fields' });
         }
 
-        const msg = await mg.messages.create(process.env.MAILGUN_DOMAIN, {
-            from: `GeoFaceAttend <noreply@${process.env.MAILGUN_DOMAIN}>`,
-            to: [to],
-            subject: subject,
-            text: text,
-            html: text.replace(/\n/g, '<br>')
-        });
+        const result = await sendEmail(to, subject, text);
 
-        res.json({ success: true, messageId: msg.id });
+        if (result.success) {
+            res.json({ success: true, messageId: result.messageId });
+        } else {
+            res.status(500).json({ success: false, error: result.error });
+        }
 
     } catch (error) {
-        console.error('Mailgun error:', error);
+        console.error('Email endpoint error:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });
 
-// ============ ERROR HANDLING ============
+// ============ EMPLOYEE ENDPOINTS ============
+app.get('/api/employees', authenticateToken, requireAdmin, async (req, res) => {
+    try {
+        const result = await query(
+            'SELECT id, emp_id, name, email, phone, department, role FROM users WHERE role = $1 ORDER BY name',
+            ['employee']
+        );
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching employees:', error);
+        res.status(500).json({ error: 'Failed to fetch employees' });
+    }
+});
 
+// ============ LEAVE REQUESTS ENDPOINTS ============
+app.get('/api/leaves/all', authenticateToken, requireAdmin, async (req, res) => {
+    try {
+        const result = await query(`
+            SELECT lr.*, u.name as employee_name, u.department 
+            FROM leave_requests lr
+            JOIN users u ON lr.emp_id = u.emp_id
+            ORDER BY lr.applied_on DESC
+        `);
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching leaves:', error);
+        res.status(500).json({ error: 'Failed to fetch leave requests' });
+    }
+});
+
+// ============ ERROR HANDLING ============
 app.use((req, res) => {
-    res.status(404).json({ success: false, error: 'Endpoint not found', requestedUrl: req.url, method: req.method });
+    res.status(404).json({
+        success: false,
+        error: 'Endpoint not found',
+        requestedUrl: req.url
+    });
 });
 
 app.use((err, req, res, next) => {
@@ -536,13 +536,14 @@ app.use((err, req, res, next) => {
 });
 
 // ============ START SERVER ============
-
 app.listen(PORT, () => {
     console.log(`\n🔒 GeoFaceAttend Secure API`);
     console.log(`📡 Running on: http://localhost:${PORT}`);
     console.log(`✅ Database connected`);
-    console.log(`✅ Mailgun ready`);
-    console.log(`✅ Twilio ready`);
+    console.log(`✅ Gmail transporter ready`);
+    console.log(`✅ JWT authentication enabled`);
     console.log(`✅ PDF reports ready`);
     console.log(`\n🚀 Server ready!\n`);
 });
+
+module.exports = app;
