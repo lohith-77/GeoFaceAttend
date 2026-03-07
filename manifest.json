@@ -1,75 +1,56 @@
 {
   "name": "GeoFaceAttend",
   "short_name": "GFAttend",
-  "description": "Smart Attendance System with Face Recognition, GPS Tracking, and QR Code Check-in",
+  "description": "Smart Attendance System with Face Recognition",
   "start_url": "/",
   "display": "standalone",
-  "display_override": [
-    "window-controls-overlay",
-    "fullscreen",
-    "standalone"
-  ],
   "background_color": "#ffffff",
   "theme_color": "#4361ee",
-  "orientation": "portrait-primary",
+  "orientation": "portrait",
   "scope": "/",
-  "lang": "en-US",
-  "dir": "ltr",
-  "id": "com.geofaceattend.app.v1",
-  "categories": [
-    "business",
-    "productivity"
-  ],
-  "prefer_related_applications": false,
-  "iarc_rating_id": "e84b072d-71b3-4d3e-86ae-31a8ce4b53b4",
+  "id": "geofaceattend-v1",
   "icons": [
     {
       "src": "assets/icons/icon-72x72.png",
       "sizes": "72x72",
-      "type": "image/png",
-      "purpose": "any"
+      "type": "image/png"
     },
     {
       "src": "assets/icons/icon-96x96.png",
       "sizes": "96x96",
-      "type": "image/png",
-      "purpose": "any"
+      "type": "image/png"
     },
     {
       "src": "assets/icons/icon-128x128.png",
       "sizes": "128x128",
-      "type": "image/png",
-      "purpose": "any"
+      "type": "image/png"
     },
     {
       "src": "assets/icons/icon-144x144.png",
       "sizes": "144x144",
-      "type": "image/png",
-      "purpose": "any"
+      "type": "image/png"
     },
     {
       "src": "assets/icons/icon-152x152.png",
       "sizes": "152x152",
-      "type": "image/png",
-      "purpose": "any"
+      "type": "image/png"
     },
     {
       "src": "assets/icons/icon-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "maskable"
     },
     {
       "src": "assets/icons/icon-384x384.png",
       "sizes": "384x384",
-      "type": "image/png",
-      "purpose": "any"
+      "type": "image/png"
     },
     {
       "src": "assets/icons/icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "maskable"
     }
   ],
   "screenshots": [
@@ -78,35 +59,33 @@
       "sizes": "1280x720",
       "type": "image/jpeg",
       "platform": "wide",
-      "label": "Dashboard Overview showing attendance charts and employee stats"
+      "label": "Admin Dashboard"
     },
     {
       "src": "assets/screenshots/face-verification.jpg",
       "sizes": "1280x720",
       "type": "image/jpeg",
       "platform": "wide",
-      "label": "Face verification with AI-powered eye detection"
+      "label": "Face Verification"
     },
     {
       "src": "assets/screenshots/qr-scanning.jpg",
       "sizes": "1280x720",
       "type": "image/jpeg",
       "platform": "wide",
-      "label": "QR code scanner for outstation check-in"
+      "label": "QR Scanner"
     },
     {
       "src": "assets/screenshots/mobile-dashboard.jpg",
       "sizes": "720x1280",
       "type": "image/jpeg",
       "platform": "narrow",
-      "label": "Mobile dashboard view"
+      "label": "Mobile View"
     }
   ],
   "shortcuts": [
     {
       "name": "Mark Attendance",
-      "short_name": "Check In",
-      "description": "Quickly mark your attendance with face verification",
       "url": "/employee/dashboard.html#attendance",
       "icons": [
         {
@@ -117,8 +96,6 @@
     },
     {
       "name": "Apply Leave",
-      "short_name": "Leave",
-      "description": "Apply for leave request",
       "url": "/employee/dashboard.html#leave",
       "icons": [
         {
@@ -128,9 +105,7 @@
       ]
     },
     {
-      "name": "Admin Dashboard",
-      "short_name": "Admin",
-      "description": "Employee management and reports",
+      "name": "Admin Panel",
       "url": "/admin/dashboard.html",
       "icons": [
         {
@@ -140,54 +115,9 @@
       ]
     }
   ],
-  "share_target": {
-    "action": "/share",
-    "method": "GET",
-    "enctype": "application/x-www-form-urlencoded",
-    "params": {
-      "title": "title",
-      "text": "text",
-      "url": "url"
-    }
-  },
-  "launch_handler": {
-    "client_mode": "focus-existing"
-  },
-  "edge_side_panel": {
-    "preferred_width": 400
-  },
-  "file_handlers": [
-    {
-      "action": "/open-file",
-      "accept": {
-        "text/csv": [
-          ".csv"
-        ],
-        "application/vnd.ms-excel": [
-          ".xlsx"
-        ]
-      }
-    }
-  ],
-  "protocol_handlers": [
-    {
-      "protocol": "mailto",
-      "url": "/handle-mail?to=%s"
-    },
-    {
-      "protocol": "web+geoface",
-      "url": "/handle-protocol?data=%s"
-    }
-  ],
   "scope_extensions": [
     {
       "origin": "https://geofaceattend-api.onrender.com"
-    }
-  ],
-  "related_applications": [
-    {
-      "platform": "webapp",
-      "url": "https://geofaceattend-1.onrender.com/manifest.json"
     }
   ]
 }
