@@ -1,21 +1,27 @@
 {
-  "name": "GeoFaceAttend - Smart Attendance System",
+  "name": "GeoFaceAttend",
   "short_name": "GFAttend",
-  "description": "Advanced attendance system with face recognition, geolocation, and QR code support",
-  "start_url": "/index.html",
+  "description": "Smart Attendance System with Face Recognition, GPS Tracking, and QR Code Check-in",
+  "start_url": "/",
   "display": "standalone",
+  "display_override": [
+    "window-controls-overlay",
+    "fullscreen",
+    "standalone"
+  ],
   "background_color": "#ffffff",
   "theme_color": "#4361ee",
   "orientation": "portrait-primary",
   "scope": "/",
   "lang": "en-US",
   "dir": "ltr",
+  "id": "com.geofaceattend.app.v1",
   "categories": [
     "business",
-    "productivity",
-    "utilities"
+    "productivity"
   ],
   "prefer_related_applications": false,
+  "iarc_rating_id": "e84b072d-71b3-4d3e-86ae-31a8ce4b53b4",
   "icons": [
     {
       "src": "assets/icons/icon-72x72.png",
@@ -72,21 +78,35 @@
       "sizes": "1280x720",
       "type": "image/jpeg",
       "platform": "wide",
-      "label": "Dashboard Overview"
+      "label": "Dashboard Overview showing attendance charts and employee stats"
     },
     {
       "src": "assets/screenshots/face-verification.jpg",
       "sizes": "1280x720",
       "type": "image/jpeg",
       "platform": "wide",
-      "label": "Face Verification"
+      "label": "Face verification with AI-powered eye detection"
+    },
+    {
+      "src": "assets/screenshots/qr-scanning.jpg",
+      "sizes": "1280x720",
+      "type": "image/jpeg",
+      "platform": "wide",
+      "label": "QR code scanner for outstation check-in"
+    },
+    {
+      "src": "assets/screenshots/mobile-dashboard.jpg",
+      "sizes": "720x1280",
+      "type": "image/jpeg",
+      "platform": "narrow",
+      "label": "Mobile dashboard view"
     }
   ],
   "shortcuts": [
     {
       "name": "Mark Attendance",
       "short_name": "Check In",
-      "description": "Quickly mark your attendance",
+      "description": "Quickly mark your attendance with face verification",
       "url": "/employee/dashboard.html#attendance",
       "icons": [
         {
@@ -98,7 +118,7 @@
     {
       "name": "Apply Leave",
       "short_name": "Leave",
-      "description": "Apply for leave",
+      "description": "Apply for leave request",
       "url": "/employee/dashboard.html#leave",
       "icons": [
         {
@@ -110,7 +130,7 @@
     {
       "name": "Admin Dashboard",
       "short_name": "Admin",
-      "description": "Admin controls",
+      "description": "Employee management and reports",
       "url": "/admin/dashboard.html",
       "icons": [
         {
@@ -120,10 +140,54 @@
       ]
     }
   ],
-  "related_applications": [],
-  "display_override": [
-    "window-controls-overlay",
-    "fullscreen",
-    "standalone"
+  "share_target": {
+    "action": "/share",
+    "method": "GET",
+    "enctype": "application/x-www-form-urlencoded",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
+  "launch_handler": {
+    "client_mode": "focus-existing"
+  },
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
+  "file_handlers": [
+    {
+      "action": "/open-file",
+      "accept": {
+        "text/csv": [
+          ".csv"
+        ],
+        "application/vnd.ms-excel": [
+          ".xlsx"
+        ]
+      }
+    }
+  ],
+  "protocol_handlers": [
+    {
+      "protocol": "mailto",
+      "url": "/handle-mail?to=%s"
+    },
+    {
+      "protocol": "web+geoface",
+      "url": "/handle-protocol?data=%s"
+    }
+  ],
+  "scope_extensions": [
+    {
+      "origin": "https://geofaceattend-api.onrender.com"
+    }
+  ],
+  "related_applications": [
+    {
+      "platform": "webapp",
+      "url": "https://geofaceattend-1.onrender.com/manifest.json"
+    }
   ]
 }
