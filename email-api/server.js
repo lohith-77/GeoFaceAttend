@@ -57,6 +57,8 @@ const mg = mailgun.client({
 // Send email function using ONLY Mailgun API
 async function sendEmail(to, subject, text) {
     try {
+        console.log(`📧 Attempting to send email to ${to} via Mailgun...`);
+
         const result = await mg.messages.create(process.env.MAILGUN_DOMAIN, {
             from: `GeoFaceAttend <noreply@${process.env.MAILGUN_DOMAIN}>`,
             to: [to],
@@ -76,7 +78,7 @@ async function sendEmail(to, subject, text) {
 // ============ DATABASE INITIALIZATION FUNCTION ============
 async function initializeDatabase() {
     console.log('🔧 Checking database setup...');
-    
+
     try {
         // Test connection
         await pool.query('SELECT NOW()');
@@ -92,7 +94,7 @@ async function initializeDatabase() {
 
         if (!tableCheck.rows[0].exists) {
             console.log('🔄 Tables not found. Running migrations...');
-            
+
             // Run migration script
             const migrateScript = path.join(__dirname, 'scripts', 'migrate.js');
             if (fs.existsSync(migrateScript)) {
@@ -115,7 +117,7 @@ async function initializeDatabase() {
             }
         } else {
             console.log('✅ Database already initialized');
-            
+
             // Check if default users exist
             const userCheck = await pool.query("SELECT COUNT(*) FROM users WHERE emp_id IN ('ADM001', 'EMP001')");
             if (parseInt(userCheck.rows[0].count) < 2) {
@@ -353,9 +355,9 @@ app.get('/test', (req, res) => {
 });
 
 app.get('/health', (req, res) => {
-    res.json({ 
-        status: 'OK', 
-        time: new Date(), 
+    res.json({
+        status: 'OK',
+        time: new Date(),
         version: '2.0.0',
         database: 'connected',
         email: 'mailgun'
@@ -366,7 +368,7 @@ app.get('/health', (req, res) => {
 app.get('/test-email-simple', async (req, res) => {
     try {
         const testEmail = req.query.email || 'chintulohith917@gmail.com';
-        
+
         const result = await sendEmail(
             testEmail,
             '📧 Test from GeoFaceAttend (Mailgun)',
@@ -381,24 +383,24 @@ Sent at: ${new Date().toLocaleString()}
 Best regards,
 GeoFaceAttend Team`
         );
-        
+
         if (result.success) {
-            res.json({ 
-                success: true, 
+            res.json({
+                success: true,
                 message: `✅ Test email sent to ${testEmail} via Mailgun!`,
                 messageId: result.messageId
             });
         } else {
-            res.status(500).json({ 
-                success: false, 
-                error: result.error 
+            res.status(500).json({
+                success: false,
+                error: result.error
             });
         }
     } catch (error) {
         console.error('Test email error:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: error.message 
+        res.status(500).json({
+            success: false,
+            error: error.message
         });
     }
 });
@@ -460,9 +462,9 @@ app.post('/register', async (req, res) => {
         );
 
         if (existing.rows.length > 0) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'User with this Employee ID or Email already exists' 
+            return res.status(400).json({
+                success: false,
+                error: 'User with this Employee ID or Email already exists'
             });
         }
 
@@ -477,13 +479,13 @@ app.post('/register', async (req, res) => {
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
              RETURNING id, emp_id, name, email, department, role`,
             [
-                empId, 
-                name, 
-                email, 
-                phone || null, 
-                hashedPassword, 
-                department, 
-                position || null, 
+                empId,
+                name,
+                email,
+                phone || null,
+                hashedPassword,
+                department,
+                position || null,
                 joinDate || new Date().toISOString().split('T')[0],
                 'employee',
                 15, 10, 5
@@ -491,18 +493,23 @@ app.post('/register', async (req, res) => {
         );
 
         const newUser = result.rows[0];
-        
+
         // Send welcome email via Mailgun
         if (newUser.email) {
             try {
-                await sendEmail(
+                const emailResult = await sendEmail(
                     newUser.email,
                     '🎉 Welcome to GeoFaceAttend!',
-                    `Hello ${newUser.name},\n\nYour account has been created successfully.\n\nEmployee ID: ${newUser.emp_id}\nDepartment: ${newUser.department}\n\nBest regards,\nGeoFaceAttend Team`
+                    `Hello ${newUser.name},\n\nYour account has been created successfully.\n\nEmployee ID: ${newUser.emp_id}\nDepartment: ${newUser.department}\n\nLogin here: https://geofaceattend-1.onrender.com/auth.html\n\nBest regards,\nGeoFaceAttend Team`
                 );
+                console.log('✅ Welcome email sent to:', newUser.email);
+                console.log('📧 Email result:', emailResult);
             } catch (emailError) {
-                console.log('Welcome email could not be sent');
+                console.error('❌ Welcome email failed:', emailError);
+                // Don't fail registration if email fails
             }
+        } else {
+            console.log('⚠️ No email provided for user:', newUser.emp_id);
         }
 
         res.json({ success: true, message: 'Registration successful', user: newUser });
@@ -737,6 +744,7 @@ app.post('/api/leaves/apply', authenticateToken, async (req, res) => {
                 '📋 New Leave Request',
                 `Employee: ${req.user.name}\nType: ${leaveType}\nFrom: ${startDate} to ${endDate}\nReason: ${reason}`
             );
+            console.log('✅ Admin notification sent');
         } catch (emailError) {
             console.log('Admin notification could not be sent');
         }
@@ -815,6 +823,7 @@ app.post('/api/leaves/:id/approve', authenticateToken, requireAdmin, async (req,
                 '✅ Leave Approved',
                 `Hello ${leave.name},\n\nYour leave request from ${leave.start_date} to ${leave.end_date} has been APPROVED.\n\nBest regards,\nGeoFaceAttend Team`
             );
+            console.log('✅ Approval email sent to:', leave.email);
         } catch (emailError) {
             console.log('Approval email could not be sent');
         }
@@ -867,6 +876,7 @@ app.post('/api/leaves/:id/reject', authenticateToken, requireAdmin, async (req, 
                 '❌ Leave Rejected',
                 `Hello ${leave.name},\n\nYour leave request from ${leave.start_date} to ${leave.end_date} has been REJECTED.\nReason: ${reason}\n\nBest regards,\nGeoFaceAttend Team`
             );
+            console.log('✅ Rejection email sent to:', leave.email);
         } catch (emailError) {
             console.log('Rejection email could not be sent');
         }
@@ -1021,10 +1031,10 @@ app.post('/send-email', authenticateToken, async (req, res) => {
 
 // ============ ERROR HANDLING ============
 app.use((req, res) => {
-    res.status(404).json({ 
-        success: false, 
-        error: 'Endpoint not found', 
-        requestedUrl: req.url 
+    res.status(404).json({
+        success: false,
+        error: 'Endpoint not found',
+        requestedUrl: req.url
     });
 });
 
@@ -1037,10 +1047,10 @@ app.use((err, req, res, next) => {
 app.listen(PORT, async () => {
     console.log(`\n🔒 GeoFaceAttend Secure API`);
     console.log(`📡 Running on: http://localhost:${PORT}`);
-    
+
     // Initialize database on startup
     await initializeDatabase();
-    
+
     console.log(`\n🚀 Server ready!\n`);
 });
 
