@@ -1,7 +1,3 @@
-const dns = require('dns');
-// Force IPv4 for all connections
-dns.setDefaultResultOrder('ipv4first');
-// Load environment variables
 require('dotenv').config();
 
 // Import required packages
@@ -17,6 +13,10 @@ const nodemailer = require('nodemailer');
 const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const dns = require('dns');
+// Force IPv4 for all connections
+dns.setDefaultResultOrder('ipv4first');
+// Load environment variables
 
 // Create Express app
 const app = express();
