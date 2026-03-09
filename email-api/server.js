@@ -236,7 +236,7 @@ async function createDefaultUsersDirectly() {
     }
 }
 
-// ============ GMAIL TRANSPORTER with IPv4-only settings ============
+// ============ GMAIL TRANSPORTER with IPv4-only ============
 const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
     port: 587,
@@ -250,11 +250,15 @@ const transporter = nodemailer.createTransport({
         rejectUnauthorized: false,
         ciphers: 'SSLv3'
     },
-    connectionTimeout: 60000, // 60 seconds
+    connectionTimeout: 60000,
     greetingTimeout: 60000,
     socketTimeout: 60000,
-    debug: true, // Enable debug logging
-    logger: true // Log to console
+    // Force IPv4 by using the IP address directly
+    lookup: function (hostname, options, callback) {
+        // Skip IPv6 lookup and only return IPv4 addresses
+        const dns = require('dns');
+        dns.lookup(hostname, { family: 4 }, callback);
+    }
 });
 
 // Verify email connection (don't let it crash the server)
