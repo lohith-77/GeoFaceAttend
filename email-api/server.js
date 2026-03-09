@@ -236,22 +236,25 @@ async function createDefaultUsersDirectly() {
     }
 }
 
-// ============ GMAIL TRANSPORTER with proper SMTP settings ============
+// ============ GMAIL TRANSPORTER with IPv4-only settings ============
 const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
     port: 587,
-    secure: false, // true for 465, false for other ports
+    secure: false,
     requireTLS: true,
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
     },
     tls: {
-        rejectUnauthorized: false
+        rejectUnauthorized: false,
+        ciphers: 'SSLv3'
     },
-    connectionTimeout: 30000, // 30 seconds
-    greetingTimeout: 30000,
-    socketTimeout: 30000
+    connectionTimeout: 60000, // 60 seconds
+    greetingTimeout: 60000,
+    socketTimeout: 60000,
+    debug: true, // Enable debug logging
+    logger: true // Log to console
 });
 
 // Verify email connection (don't let it crash the server)
