@@ -1,3 +1,4 @@
+// Load environment variables
 require('dotenv').config();
 
 // Import required packages
@@ -13,10 +14,10 @@ const nodemailer = require('nodemailer');
 const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
-const dns = require('dns');
-// Force IPv4 for all connections
+const dns = require('dns'); // ← ONLY ONE declaration - DO NOT DUPLICATE THIS!
+
+// Force IPv4 for all DNS lookups (fixes ENETUNREACH errors)
 dns.setDefaultResultOrder('ipv4first');
-// Load environment variables
 
 // Create Express app
 const app = express();
@@ -44,7 +45,7 @@ if (process.env.NODE_ENV === 'production') {
 // ============ DATABASE INITIALIZATION FUNCTION ============
 async function initializeDatabase() {
     console.log('🔧 Checking database setup...');
-
+    
     try {
         // Test connection
         await pool.query('SELECT NOW()');
@@ -60,7 +61,7 @@ async function initializeDatabase() {
 
         if (!tableCheck.rows[0].exists) {
             console.log('🔄 Tables not found. Running migrations...');
-
+            
             // Run migration script
             const migrateScript = path.join(__dirname, 'scripts', 'migrate.js');
             if (fs.existsSync(migrateScript)) {
@@ -83,7 +84,7 @@ async function initializeDatabase() {
             }
         } else {
             console.log('✅ Database already initialized');
-
+            
             // Check if default users exist
             const userCheck = await pool.query("SELECT COUNT(*) FROM users WHERE emp_id IN ('ADM001', 'EMP001')");
             if (parseInt(userCheck.rows[0].count) < 2) {
@@ -239,11 +240,7 @@ async function createDefaultUsersDirectly() {
     }
 }
 
-// ============ GMAIL TRANSPORTER with forced IPv4 ============
-const dns = require('dns');
-// Force IPv4 for all DNS lookups
-dns.setDefaultResultOrder('ipv4first');
-
+// ============ GMAIL TRANSPORTER with IPv4 fix ============
 const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
     port: 587,
@@ -254,17 +251,11 @@ const transporter = nodemailer.createTransport({
         pass: process.env.EMAIL_PASS
     },
     tls: {
-        rejectUnauthorized: false,
-        ciphers: 'SSLv3'
+        rejectUnauthorized: false
     },
     connectionTimeout: 30000,
     greetingTimeout: 30000,
-    socketTimeout: 30000,
-    // Explicitly disable IPv6
-    lookup: (hostname, options, callback) => {
-        options.family = 4;
-        dns.lookup(hostname, options, callback);
-    }
+    socketTimeout: 30000
 });
 
 // Verify email connection (don't let it crash the server)
@@ -378,9 +369,9 @@ app.get('/test', (req, res) => {
 });
 
 app.get('/health', (req, res) => {
-    res.json({
-        status: 'OK',
-        time: new Date(),
+    res.json({ 
+        status: 'OK', 
+        time: new Date(), 
         version: '2.0.0',
         database: 'connected',
         email: 'configured'
@@ -391,7 +382,7 @@ app.get('/health', (req, res) => {
 app.get('/test-email-simple', async (req, res) => {
     try {
         const testEmail = req.query.email || 'lohith7780@gmail.com';
-
+        
         const result = await sendEmail(
             testEmail,
             '📧 Test Email from GeoFaceAttend',
@@ -406,24 +397,24 @@ Sent at: ${new Date().toLocaleString()}
 Best regards,
 GeoFaceAttend Team`
         );
-
+        
         if (result.success) {
-            res.json({
-                success: true,
+            res.json({ 
+                success: true, 
                 message: `✅ Test email sent to ${testEmail}!`,
                 messageId: result.messageId
             });
         } else {
-            res.status(500).json({
-                success: false,
-                error: result.error
+            res.status(500).json({ 
+                success: false, 
+                error: result.error 
             });
         }
     } catch (error) {
         console.error('Test email error:', error);
-        res.status(500).json({
-            success: false,
-            error: error.message
+        res.status(500).json({ 
+            success: false, 
+            error: error.message 
         });
     }
 });
@@ -485,9 +476,9 @@ app.post('/register', async (req, res) => {
         );
 
         if (existing.rows.length > 0) {
-            return res.status(400).json({
-                success: false,
-                error: 'User with this Employee ID or Email already exists'
+            return res.status(400).json({ 
+                success: false, 
+                error: 'User with this Employee ID or Email already exists' 
             });
         }
 
@@ -502,13 +493,13 @@ app.post('/register', async (req, res) => {
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
              RETURNING id, emp_id, name, email, department, role`,
             [
-                empId,
-                name,
-                email,
-                phone || null,
-                hashedPassword,
-                department,
-                position || null,
+                empId, 
+                name, 
+                email, 
+                phone || null, 
+                hashedPassword, 
+                department, 
+                position || null, 
                 joinDate || new Date().toISOString().split('T')[0],
                 'employee',
                 15, 10, 5
@@ -970,10 +961,10 @@ app.post('/send-email', authenticateToken, async (req, res) => {
 
 // ============ ERROR HANDLING ============
 app.use((req, res) => {
-    res.status(404).json({
-        success: false,
-        error: 'Endpoint not found',
-        requestedUrl: req.url
+    res.status(404).json({ 
+        success: false, 
+        error: 'Endpoint not found', 
+        requestedUrl: req.url 
     });
 });
 
@@ -986,10 +977,10 @@ app.use((err, req, res, next) => {
 app.listen(PORT, async () => {
     console.log(`\n🔒 GeoFaceAttend Secure API`);
     console.log(`📡 Running on: http://localhost:${PORT}`);
-
+    
     // Initialize database on startup
     await initializeDatabase();
-
+    
     console.log(`\n🚀 Server ready!\n`);
 });
 
