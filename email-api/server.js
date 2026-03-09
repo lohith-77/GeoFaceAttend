@@ -10,14 +10,17 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { Pool } = require('pg');
 const PDFDocument = require('pdfkit');
-const nodemailer = require('nodemailer');
 const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
-const dns = require('dns'); // ← ONLY ONE declaration - DO NOT DUPLICATE THIS!
+const dns = require('dns');
 
-// Force IPv4 for all DNS lookups (fixes ENETUNREACH errors)
+// Force IPv4 for all DNS lookups
 dns.setDefaultResultOrder('ipv4first');
+
+// Mailgun packages
+const formData = require('form-data');
+const Mailgun = require('mailgun.js');
 
 // Create Express app
 const app = express();
@@ -40,6 +43,33 @@ if (process.env.NODE_ENV === 'production') {
         password: process.env.DB_PASSWORD || 'postgres',
         port: process.env.DB_PORT || 5432,
     });
+}
+
+// ============ MAILGUN INITIALIZATION ============
+const mailgun = new Mailgun(formData);
+const mg = mailgun.client({
+    username: 'api',
+    key: process.env.MAILGUN_API_KEY,
+    url: 'https://api.mailgun.net' // or 'https://api.eu.mailgun.net' for EU region
+});
+
+// Send email function using Mailgun
+async function sendEmail(to, subject, text) {
+    try {
+        const result = await mg.messages.create(process.env.MAILGUN_DOMAIN, {
+            from: `GeoFaceAttend <noreply@${process.env.MAILGUN_DOMAIN}>`,
+            to: [to],
+            subject: subject,
+            text: text,
+            html: text.replace(/\n/g, '<br>')
+        });
+
+        console.log('✅ Email sent via Mailgun:', result.id);
+        return { success: true, messageId: result.id };
+    } catch (error) {
+        console.error('❌ Mailgun error:', error);
+        return { success: false, error: error.message };
+    }
 }
 
 // ============ DATABASE INITIALIZATION FUNCTION ============
@@ -240,34 +270,6 @@ async function createDefaultUsersDirectly() {
     }
 }
 
-// ============ GMAIL TRANSPORTER with IPv4 fix ============
-const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false,
-    requireTLS: true,
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-    },
-    tls: {
-        rejectUnauthorized: false
-    },
-    connectionTimeout: 30000,
-    greetingTimeout: 30000,
-    socketTimeout: 30000
-});
-
-// Verify email connection (don't let it crash the server)
-transporter.verify((error, success) => {
-    if (error) {
-        console.log('⚠️ Email notifications disabled - Gmail configuration issue');
-        console.log('   To enable emails, update your .env with correct Gmail credentials');
-    } else {
-        console.log('✅ Gmail transporter ready');
-    }
-});
-
 // ============ HELPER FUNCTIONS ============
 
 // Query helper
@@ -305,25 +307,6 @@ function requireAdmin(req, res, next) {
         return res.status(403).json({ success: false, error: 'Admin access required' });
     }
     next();
-}
-
-// Send email function
-async function sendEmail(to, subject, text) {
-    try {
-        const mailOptions = {
-            from: `"${process.env.EMAIL_FROM_NAME || 'GeoFaceAttend'}" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
-            to: to,
-            subject: subject,
-            text: text
-        };
-
-        const info = await transporter.sendMail(mailOptions);
-        console.log('✅ Email sent:', info.messageId);
-        return { success: true, messageId: info.messageId };
-    } catch (error) {
-        console.error('❌ Email sending failed:', error);
-        return { success: false, error: error.message };
-    }
 }
 
 // ============ SECURITY MIDDLEWARE ============
@@ -374,23 +357,23 @@ app.get('/health', (req, res) => {
         time: new Date(), 
         version: '2.0.0',
         database: 'connected',
-        email: 'configured'
+        email: 'mailgun'
     });
 });
 
-// ============ TEST EMAIL ENDPOINT (No Auth Required for Testing) ============
+// ============ TEST MAILGUN ENDPOINT ============
 app.get('/test-email-simple', async (req, res) => {
     try {
         const testEmail = req.query.email || 'lohith7780@gmail.com';
         
         const result = await sendEmail(
             testEmail,
-            '📧 Test Email from GeoFaceAttend',
+            '📧 Test from GeoFaceAttend (Mailgun)',
             `Hello,
 
-This is a test email to verify Gmail integration is working correctly.
+This is a test email sent via Mailgun from your GeoFaceAttend application.
 
-If you received this, email notifications are working!
+If you received this, Mailgun integration is working!
 
 Sent at: ${new Date().toLocaleString()}
 
@@ -401,7 +384,7 @@ GeoFaceAttend Team`
         if (result.success) {
             res.json({ 
                 success: true, 
-                message: `✅ Test email sent to ${testEmail}!`,
+                message: `✅ Test email sent to ${testEmail} via Mailgun!`,
                 messageId: result.messageId
             });
         } else {
@@ -507,6 +490,20 @@ app.post('/register', async (req, res) => {
         );
 
         const newUser = result.rows[0];
+        
+        // Send welcome email
+        if (newUser.email) {
+            try {
+                await sendEmail(
+                    newUser.email,
+                    '🎉 Welcome to GeoFaceAttend!',
+                    `Hello ${newUser.name},\n\nYour account has been created successfully.\n\nEmployee ID: ${newUser.emp_id}\nDepartment: ${newUser.department}\n\nBest regards,\nGeoFaceAttend Team`
+                );
+            } catch (emailError) {
+                console.log('Welcome email could not be sent');
+            }
+        }
+
         res.json({ success: true, message: 'Registration successful', user: newUser });
 
     } catch (error) {
@@ -731,6 +728,18 @@ app.post('/api/leaves/apply', authenticateToken, async (req, res) => {
             [empId, leaveType, startDate, endDate, days, reason, contact]
         );
 
+        // Notify admin
+        const adminEmail = process.env.ADMIN_EMAIL || 'admin@company.com';
+        try {
+            await sendEmail(
+                adminEmail,
+                '📋 New Leave Request',
+                `Employee: ${req.user.name}\nType: ${leaveType}\nFrom: ${startDate} to ${endDate}\nReason: ${reason}`
+            );
+        } catch (emailError) {
+            console.log('Admin notification could not be sent');
+        }
+
         res.json({ success: true, leave: result.rows[0] });
 
     } catch (error) {
@@ -775,6 +784,20 @@ app.post('/api/leaves/:id/approve', authenticateToken, requireAdmin, async (req,
     try {
         const { id } = req.params;
 
+        // Get leave details with employee email
+        const leaveResult = await query(`
+            SELECT lr.*, u.email, u.name 
+            FROM leave_requests lr
+            JOIN users u ON lr.emp_id = u.emp_id
+            WHERE lr.id = $1
+        `, [id]);
+
+        if (leaveResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Leave not found' });
+        }
+
+        const leave = leaveResult.rows[0];
+
         await query(
             `UPDATE leave_requests 
              SET status = 'approved', 
@@ -783,6 +806,17 @@ app.post('/api/leaves/:id/approve', authenticateToken, requireAdmin, async (req,
              WHERE id = $2`,
             [req.user.empId, id]
         );
+
+        // Send approval email
+        try {
+            await sendEmail(
+                leave.email,
+                '✅ Leave Approved',
+                `Hello ${leave.name},\n\nYour leave request from ${leave.start_date} to ${leave.end_date} has been APPROVED.\n\nBest regards,\nGeoFaceAttend Team`
+            );
+        } catch (emailError) {
+            console.log('Approval email could not be sent');
+        }
 
         res.json({ success: true, message: 'Leave approved' });
 
@@ -801,6 +835,20 @@ app.post('/api/leaves/:id/reject', authenticateToken, requireAdmin, async (req, 
             return res.status(400).json({ error: 'Rejection reason is required' });
         }
 
+        // Get leave details with employee email
+        const leaveResult = await query(`
+            SELECT lr.*, u.email, u.name 
+            FROM leave_requests lr
+            JOIN users u ON lr.emp_id = u.emp_id
+            WHERE lr.id = $1
+        `, [id]);
+
+        if (leaveResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Leave not found' });
+        }
+
+        const leave = leaveResult.rows[0];
+
         await query(
             `UPDATE leave_requests 
              SET status = 'rejected', 
@@ -810,6 +858,17 @@ app.post('/api/leaves/:id/reject', authenticateToken, requireAdmin, async (req, 
              WHERE id = $3`,
             [reason, req.user.empId, id]
         );
+
+        // Send rejection email
+        try {
+            await sendEmail(
+                leave.email,
+                '❌ Leave Rejected',
+                `Hello ${leave.name},\n\nYour leave request from ${leave.start_date} to ${leave.end_date} has been REJECTED.\nReason: ${reason}\n\nBest regards,\nGeoFaceAttend Team`
+            );
+        } catch (emailError) {
+            console.log('Rejection email could not be sent');
+        }
 
         res.json({ success: true, message: 'Leave rejected' });
 
