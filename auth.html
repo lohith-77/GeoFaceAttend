@@ -12,209 +12,187 @@
     <!-- PWA Support -->
     <link rel="manifest" href="/manifest.json">
     <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="GeoFaceAttend">
     <meta name="theme-color" content="#4361ee">
-    <link rel="apple-touch-icon" href="/assets/icons/icon-152x152.png">
 
     <style>
-        .error-message {
-            color: #ef4444;
-            font-size: 12px;
-            margin-top: 4px;
-            display: block;
+        .error-message { color: #ef4444; font-size: 12px; margin-top: 4px; display: block; }
+        .form-group input.error, .form-group select.error { border-color: #ef4444; }
+        
+        .modal { 
+            display: none; 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            background: rgba(0,0,0,0.5); 
+            justify-content: center; 
+            align-items: center; 
+            z-index: 2000; 
+            backdrop-filter: blur(4px); 
         }
-
-        .form-group input.error,
-        .form-group select.error {
-            border-color: #ef4444;
+        
+        .modal-content { 
+            background: var(--card-bg); 
+            border-radius: 24px; 
+            padding: 40px; 
+            max-width: 450px; 
+            width: 90%; 
+            animation: scaleIn 0.3s ease; 
+            border: 1px solid var(--border-color); 
+            position: relative; 
         }
-
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            justify-content: center;
-            align-items: center;
-            z-index: 2000;
-            backdrop-filter: blur(4px);
+        
+        @keyframes scaleIn { 
+            from { transform: scale(0.9); opacity: 0; } 
+            to { transform: scale(1); opacity: 1; } 
         }
-
-        .modal-content {
-            background: var(--card-bg);
-            border-radius: 24px;
-            padding: 40px;
-            max-width: 450px;
-            width: 90%;
-            animation: scaleIn 0.3s ease;
-            border: 1px solid var(--border-color);
-            position: relative;
+        
+        .modal-header { 
+            text-align: center; 
+            margin-bottom: 30px; 
         }
-
-        @keyframes scaleIn {
-            from {
-                transform: scale(0.9);
-                opacity: 0;
-            }
-
-            to {
-                transform: scale(1);
-                opacity: 1;
-            }
+        
+        .modal-header h3 { 
+            font-size: 24px; 
+            margin-bottom: 10px; 
+            color: var(--text-primary); 
         }
-
-        .modal-header {
-            text-align: center;
-            margin-bottom: 30px;
+        
+        .modal-header p { 
+            color: var(--text-muted); 
         }
-
-        .modal-header h3 {
-            font-size: 24px;
-            margin-bottom: 10px;
-            color: var(--text-primary);
+        
+        .modal-close { 
+            background: none; 
+            border: none; 
+            font-size: 24px; 
+            cursor: pointer; 
+            color: var(--text-muted); 
+            position: absolute; 
+            top: 20px; 
+            right: 20px; 
         }
-
-        .modal-header p {
-            color: var(--text-muted);
+        
+        .otp-container { 
+            display: flex; 
+            gap: 12px; 
+            justify-content: center; 
+            margin-bottom: 20px; 
         }
-
-        .modal-close {
-            background: none;
-            border: none;
-            font-size: 24px;
-            cursor: pointer;
-            color: var(--text-muted);
-            position: absolute;
-            top: 20px;
-            right: 20px;
+        
+        .otp-input { 
+            width: 50px; 
+            height: 60px; 
+            border: 2px solid var(--border-color); 
+            border-radius: 12px; 
+            text-align: center; 
+            font-size: 24px; 
+            font-weight: 600; 
+            background: var(--bg-tertiary); 
+            color: var(--text-primary); 
         }
-
-        .otp-container {
-            display: flex;
-            gap: 12px;
-            justify-content: center;
-            margin-bottom: 20px;
+        
+        .otp-input:focus { 
+            outline: none; 
+            border-color: var(--primary); 
         }
-
-        .otp-input {
-            width: 50px;
-            height: 60px;
-            border: 2px solid var(--border-color);
-            border-radius: 12px;
-            text-align: center;
-            font-size: 24px;
-            font-weight: 600;
-            background: var(--bg-tertiary);
-            color: var(--text-primary);
+        
+        .otp-timer { 
+            text-align: center; 
+            margin-bottom: 20px; 
+            color: var(--text-muted); 
         }
-
-        .otp-input:focus {
-            outline: none;
-            border-color: var(--primary);
+        
+        .otp-timer span { 
+            font-weight: 600; 
+            color: var(--primary); 
         }
-
-        .otp-timer {
-            text-align: center;
-            margin-bottom: 20px;
-            color: var(--text-muted);
+        
+        .otp-timer button { 
+            background: none; 
+            border: none; 
+            color: var(--primary); 
+            cursor: pointer; 
+            margin-left: 10px; 
         }
-
-        .otp-timer span {
-            font-weight: 600;
-            color: var(--primary);
+        
+        .otp-timer button:disabled { 
+            color: var(--text-muted); 
+            cursor: not-allowed; 
         }
-
-        .otp-timer button {
-            background: none;
-            border: none;
-            color: var(--primary);
-            cursor: pointer;
-            margin-left: 10px;
+        
+        .demo-note { 
+            text-align: center; 
+            margin-top: 20px; 
+            font-size: 12px; 
+            color: var(--text-muted); 
+            background: rgba(67,97,238,0.1); 
+            padding: 8px; 
+            border-radius: 8px; 
         }
-
-        .otp-timer button:disabled {
-            color: var(--text-muted);
-            cursor: not-allowed;
+        
+        .password-strength { 
+            margin-top: 5px; 
+            height: 4px; 
+            background: var(--border-color); 
+            border-radius: 2px; 
+            overflow: hidden; 
         }
-
-        .demo-note {
-            text-align: center;
-            margin-top: 20px;
-            font-size: 12px;
-            color: var(--text-muted);
-            background: rgba(67, 97, 238, 0.1);
-            padding: 8px;
-            border-radius: 8px;
+        
+        .strength-bar { 
+            height: 100%; 
+            width: 0; 
+            transition: width 0.3s, background 0.3s; 
         }
-
-        .password-strength {
-            margin-top: 5px;
-            height: 4px;
-            background: var(--border-color);
-            border-radius: 2px;
-            overflow: hidden;
+        
+        .strength-bar.weak { 
+            width: 33.33%; 
+            background: #ef4444; 
         }
-
-        .strength-bar {
-            height: 100%;
-            width: 0;
-            transition: width 0.3s, background 0.3s;
+        
+        .strength-bar.medium { 
+            width: 66.66%; 
+            background: #f59e0b; 
         }
-
-        .strength-bar.weak {
-            width: 33.33%;
-            background: #ef4444;
+        
+        .strength-bar.strong { 
+            width: 100%; 
+            background: #10b981; 
         }
-
-        .strength-bar.medium {
-            width: 66.66%;
-            background: #f59e0b;
+        
+        .role-badge { 
+            display: inline-block; 
+            padding: 4px 12px; 
+            border-radius: 20px; 
+            font-size: 12px; 
+            font-weight: 600; 
+            margin-bottom: 15px; 
         }
-
-        .strength-bar.strong {
-            width: 100%;
-            background: #10b981;
+        
+        .role-badge.employee { 
+            background: rgba(16,185,129,0.15); 
+            color: #10b981; 
         }
-
-        .role-badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            margin-bottom: 15px;
+        
+        .role-badge.admin { 
+            background: rgba(67,97,238,0.15); 
+            color: #4361ee; 
         }
-
-        .role-badge.employee {
-            background: rgba(16, 185, 129, 0.15);
-            color: #10b981;
+        
+        .loading-spinner { 
+            display: inline-block; 
+            width: 16px; 
+            height: 16px; 
+            border: 2px solid #fff; 
+            border-radius: 50%; 
+            border-top-color: transparent; 
+            animation: spin 1s linear infinite; 
+            margin-right: 8px; 
         }
-
-        .role-badge.admin {
-            background: rgba(67, 97, 238, 0.15);
-            color: #4361ee;
-        }
-
-        .loading-spinner {
-            display: inline-block;
-            width: 16px;
-            height: 16px;
-            border: 2px solid #fff;
-            border-radius: 50%;
-            border-top-color: transparent;
-            animation: spin 1s linear infinite;
-            margin-right: 8px;
-        }
-
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
+        
+        @keyframes spin { 
+            to { transform: rotate(360deg); } 
         }
     </style>
 </head>
@@ -330,18 +308,12 @@
             </div>
 
             <div class="otp-container">
-                <input type="text" class="otp-input" maxlength="1" onkeyup="moveToNext(this, 0)"
-                    onkeypress="allowOnlyNumbers(event)" autofocus>
-                <input type="text" class="otp-input" maxlength="1" onkeyup="moveToNext(this, 1)"
-                    onkeypress="allowOnlyNumbers(event)">
-                <input type="text" class="otp-input" maxlength="1" onkeyup="moveToNext(this, 2)"
-                    onkeypress="allowOnlyNumbers(event)">
-                <input type="text" class="otp-input" maxlength="1" onkeyup="moveToNext(this, 3)"
-                    onkeypress="allowOnlyNumbers(event)">
-                <input type="text" class="otp-input" maxlength="1" onkeyup="moveToNext(this, 4)"
-                    onkeypress="allowOnlyNumbers(event)">
-                <input type="text" class="otp-input" maxlength="1" onkeyup="moveToNext(this, 5)"
-                    onkeypress="allowOnlyNumbers(event)">
+                <input type="text" class="otp-input" maxlength="1" onkeyup="moveToNext(this, 0)" onkeypress="allowOnlyNumbers(event)" autofocus>
+                <input type="text" class="otp-input" maxlength="1" onkeyup="moveToNext(this, 1)" onkeypress="allowOnlyNumbers(event)">
+                <input type="text" class="otp-input" maxlength="1" onkeyup="moveToNext(this, 2)" onkeypress="allowOnlyNumbers(event)">
+                <input type="text" class="otp-input" maxlength="1" onkeyup="moveToNext(this, 3)" onkeypress="allowOnlyNumbers(event)">
+                <input type="text" class="otp-input" maxlength="1" onkeyup="moveToNext(this, 4)" onkeypress="allowOnlyNumbers(event)">
+                <input type="text" class="otp-input" maxlength="1" onkeyup="moveToNext(this, 5)" onkeypress="allowOnlyNumbers(event)">
             </div>
 
             <div class="otp-timer">
@@ -360,14 +332,40 @@
     <script>
         // Configuration
         const API_URL = window.API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5001' : 'https://geofaceattend-api.onrender.com');
+        let otpTimer = null;
 
         // Get selected role from localStorage
         const selectedRole = localStorage.getItem('selectedRole') || 'employee';
-        document.getElementById('roleDisplay').textContent = selectedRole === 'admin' ? 'Admin Portal' : 'Employee Portal';
-        document.getElementById('roleDisplay').className = `role-badge ${selectedRole}`;
+        
+        // Set role display on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const roleDisplay = document.getElementById('roleDisplay');
+            if (roleDisplay) {
+                roleDisplay.textContent = selectedRole === 'admin' ? 'Admin Portal' : 'Employee Portal';
+                roleDisplay.className = `role-badge ${selectedRole}`;
+            }
+            
+            // Setup register link
+            const registerLink = document.querySelector('a[href="#"][onclick="showRegister()"]');
+            if (registerLink) {
+                registerLink.onclick = function(e) {
+                    e.preventDefault();
+                    showRegister();
+                };
+            }
+
+            // Setup login link
+            const loginLink = document.querySelector('a[href="#"][onclick="showLogin()"]');
+            if (loginLink) {
+                loginLink.onclick = function(e) {
+                    e.preventDefault();
+                    showLogin();
+                };
+            }
+        });
 
         // Password strength indicator
-        document.getElementById('regPassword')?.addEventListener('input', function (e) {
+        document.getElementById('regPassword')?.addEventListener('input', function(e) {
             const password = e.target.value;
             const strengthBar = document.getElementById('passwordStrength');
             if (strengthBar) {
@@ -409,13 +407,10 @@
                 return;
             }
 
-            // Disable button and show loading
             loginBtn.disabled = true;
             loginBtn.innerHTML = '<span class="loading-spinner"></span> Logging in...';
 
             try {
-                console.log('Attempting login with:', { empId, password });
-
                 const response = await fetch(`${API_URL}/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -423,102 +418,78 @@
                 });
 
                 const data = await response.json();
-                console.log('Login response:', data);
 
                 if (data.success) {
-                    // Store user data
                     sessionStorage.setItem('token', data.token);
                     sessionStorage.setItem('currentUser', JSON.stringify(data.user));
-
-                    // Show OTP modal
+                    
                     document.getElementById('otpModal').style.display = 'flex';
                     startOTPTimer();
-
-                    // Clear any previous OTP inputs
-                    document.querySelectorAll('.otp-input').forEach(input => input.value = '');
                     document.querySelectorAll('.otp-input')[0]?.focus();
                 } else {
                     alert('Invalid credentials. Try ADM001/admin123 or EMP001/emp123');
                 }
             } catch (error) {
                 console.error('Login error:', error);
-                alert('Cannot connect to server. Make sure backend is running on port 5001');
+                alert('Cannot connect to server. Make sure backend is running');
             } finally {
-                // Restore button
                 loginBtn.disabled = false;
                 loginBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Login & Send OTP';
             }
         }
 
         // Register function
-       async function handleRegister() {
-    const name = document.getElementById('regName').value.trim();
-    const email = document.getElementById('regEmail').value.trim();
-    const empId = document.getElementById('regEmpId').value.trim();
-    const password = document.getElementById('regPassword').value;
-    const dept = document.getElementById('regDept').value;
-    const registerBtn = document.getElementById('registerBtn');
+        async function handleRegister() {
+            const name = document.getElementById('regName').value.trim();
+            const email = document.getElementById('regEmail').value.trim();
+            const empId = document.getElementById('regEmpId').value.trim();
+            const password = document.getElementById('regPassword').value;
+            const dept = document.getElementById('regDept').value;
+            const registerBtn = document.getElementById('registerBtn');
 
-    if (!name || !email || !empId || !password || !dept) {
-        alert('Please fill all fields');
-        return;
-    }
+            if (!name || !email || !empId || !password || !dept) {
+                alert('Please fill all fields');
+                return;
+            }
 
-    if (password.length < 6) {
-        alert('Password must be at least 6 characters');
-        return;
-    }
+            if (password.length < 6) {
+                alert('Password must be at least 6 characters');
+                return;
+            }
 
-    registerBtn.disabled = true;
-    registerBtn.innerHTML = '<span class="loading-spinner"></span> Registering...';
+            registerBtn.disabled = true;
+            registerBtn.innerHTML = '<span class="loading-spinner"></span> Registering...';
 
-    try {
-        const response = await fetch(`${API_URL}/register`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                name, 
-                email, 
-                empId, 
-                password, 
-                department: dept 
-            })
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            // Store user data temporarily for OTP
-            sessionStorage.setItem('pendingUser', JSON.stringify({
-                empId: empId,
-                password: password,
-                name: name
-            }));
-            
-            // Show OTP modal
-            document.getElementById('otpModal').style.display = 'flex';
-            startOTPTimer();
-            
-            // Clear any previous OTP inputs
-            document.querySelectorAll('.otp-input').forEach(input => input.value = '');
-            document.querySelectorAll('.otp-input')[0]?.focus();
-        } else {
-            alert(data.error || 'Registration failed');
-        }
-    } catch (error) {
-        console.error('Registration error:', error);
-        alert('Cannot connect to server');
-    } finally {
-        registerBtn.disabled = false;
-        registerBtn.innerHTML = '<i class="fas fa-user-plus"></i> Register & Send OTP';
-    }
-}
+            try {
+                const response = await fetch(`${API_URL}/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        name, 
+                        email, 
+                        empId, 
+                        password, 
+                        department: dept 
+                    })
+                });
 
                 const data = await response.json();
 
                 if (data.success) {
-                    alert('Registration successful! Please login.');
-                    showLogin();
+                    // Store user data temporarily for OTP
+                    sessionStorage.setItem('pendingUser', JSON.stringify({
+                        empId: empId,
+                        password: password,
+                        name: name
+                    }));
+                    
+                    // Show OTP modal
+                    document.getElementById('otpModal').style.display = 'flex';
+                    startOTPTimer();
+                    
+                    // Clear any previous OTP inputs
+                    document.querySelectorAll('.otp-input').forEach(input => input.value = '');
+                    document.querySelectorAll('.otp-input')[0]?.focus();
                 } else {
                     alert(data.error || 'Registration failed');
                 }
@@ -580,39 +551,38 @@
         }
 
         function verifyOTP() {
-    const inputs = document.querySelectorAll('.otp-input');
-    const otp = Array.from(inputs).map(i => i.value).join('');
+            const inputs = document.querySelectorAll('.otp-input');
+            const otp = Array.from(inputs).map(i => i.value).join('');
 
-    if (otp === '123456') {
-        // Check if this is from registration or login
-        const pendingUser = sessionStorage.getItem('pendingUser');
-        
-        if (pendingUser) {
-            // This is a registration
-            const user = JSON.parse(pendingUser);
-            alert('Registration successful! Please login with your credentials.');
-            sessionStorage.removeItem('pendingUser');
-            showLogin();
-        } else {
-            // This is a login
-            const user = JSON.parse(sessionStorage.getItem('currentUser'));
-            if (user && user.role === 'admin') {
-                window.location.href = 'admin/dashboard.html';
+            if (otp === '123456') {
+                // Check if this is from registration or login
+                const pendingUser = sessionStorage.getItem('pendingUser');
+                
+                if (pendingUser) {
+                    // This is a registration
+                    alert('Registration successful! Please login with your credentials.');
+                    sessionStorage.removeItem('pendingUser');
+                    showLogin();
+                } else {
+                    // This is a login
+                    const user = JSON.parse(sessionStorage.getItem('currentUser'));
+                    if (user && user.role === 'admin') {
+                        window.location.href = 'admin/dashboard.html';
+                    } else {
+                        window.location.href = 'employee/dashboard.html';
+                    }
+                }
+                
+                // Close modal
+                document.getElementById('otpModal').style.display = 'none';
+                document.querySelectorAll('.otp-input').forEach(i => i.value = '');
+                
             } else {
-                window.location.href = 'employee/dashboard.html';
+                alert('Invalid OTP. Use 123456');
+                inputs.forEach(i => i.value = '');
+                inputs[0].focus();
             }
         }
-        
-        // Close modal
-        document.getElementById('otpModal').style.display = 'none';
-        document.querySelectorAll('.otp-input').forEach(i => i.value = '');
-        
-    } else {
-        alert('Invalid OTP. Use 123456');
-        inputs.forEach(i => i.value = '');
-        inputs[0].focus();
-    }
-}
 
         function closeOTPModal() {
             document.getElementById('otpModal').style.display = 'none';
@@ -631,19 +601,13 @@
         window.allowOnlyNumbers = allowOnlyNumbers;
 
         // Close modal when clicking outside
-        window.onclick = function (event) {
+        window.onclick = function(event) {
             const modal = document.getElementById('otpModal');
             if (event.target === modal) {
                 modal.style.display = 'none';
                 if (otpTimer) clearInterval(otpTimer);
             }
         };
-
-        // Check if backend is reachable on load
-        fetch(`${API_URL}/health`)
-            .then(response => response.json())
-            .then(data => console.log('✅ Backend connected:', data))
-            .catch(error => console.error('❌ Backend not reachable:', error));
     </script>
 </body>
 
