@@ -18,7 +18,7 @@ const dns = require('dns');
 // Force IPv4 for all DNS lookups
 dns.setDefaultResultOrder('ipv4first');
 
-// Mailgun packages
+// Mailgun packages (NO nodemailer)
 const formData = require('form-data');
 const Mailgun = require('mailgun.js');
 
@@ -46,6 +46,7 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 // ============ MAILGUN INITIALIZATION ============
+// NO SMTP, NO NODEMAILER - ONLY MAILGUN API
 const mailgun = new Mailgun(formData);
 const mg = mailgun.client({
     username: 'api',
@@ -53,7 +54,7 @@ const mg = mailgun.client({
     url: 'https://api.mailgun.net' // or 'https://api.eu.mailgun.net' for EU region
 });
 
-// Send email function using Mailgun
+// Send email function using ONLY Mailgun API
 async function sendEmail(to, subject, text) {
     try {
         const result = await mg.messages.create(process.env.MAILGUN_DOMAIN, {
@@ -364,7 +365,7 @@ app.get('/health', (req, res) => {
 // ============ TEST MAILGUN ENDPOINT ============
 app.get('/test-email-simple', async (req, res) => {
     try {
-        const testEmail = req.query.email || 'lohith7780@gmail.com';
+        const testEmail = req.query.email || 'chintulohith917@gmail.com';
         
         const result = await sendEmail(
             testEmail,
@@ -491,7 +492,7 @@ app.post('/register', async (req, res) => {
 
         const newUser = result.rows[0];
         
-        // Send welcome email
+        // Send welcome email via Mailgun
         if (newUser.email) {
             try {
                 await sendEmail(
@@ -728,7 +729,7 @@ app.post('/api/leaves/apply', authenticateToken, async (req, res) => {
             [empId, leaveType, startDate, endDate, days, reason, contact]
         );
 
-        // Notify admin
+        // Notify admin via Mailgun
         const adminEmail = process.env.ADMIN_EMAIL || 'admin@company.com';
         try {
             await sendEmail(
@@ -807,7 +808,7 @@ app.post('/api/leaves/:id/approve', authenticateToken, requireAdmin, async (req,
             [req.user.empId, id]
         );
 
-        // Send approval email
+        // Send approval email via Mailgun
         try {
             await sendEmail(
                 leave.email,
@@ -859,7 +860,7 @@ app.post('/api/leaves/:id/reject', authenticateToken, requireAdmin, async (req, 
             [reason, req.user.empId, id]
         );
 
-        // Send rejection email
+        // Send rejection email via Mailgun
         try {
             await sendEmail(
                 leave.email,
