@@ -1,3 +1,6 @@
+const dns = require('dns');
+// Force IPv4 for all connections
+dns.setDefaultResultOrder('ipv4first');
 // Load environment variables
 require('dotenv').config();
 
@@ -236,7 +239,11 @@ async function createDefaultUsersDirectly() {
     }
 }
 
-// ============ GMAIL TRANSPORTER with IPv4-only ============
+// ============ GMAIL TRANSPORTER with forced IPv4 ============
+const dns = require('dns');
+// Force IPv4 for all DNS lookups
+dns.setDefaultResultOrder('ipv4first');
+
 const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
     port: 587,
@@ -250,14 +257,13 @@ const transporter = nodemailer.createTransport({
         rejectUnauthorized: false,
         ciphers: 'SSLv3'
     },
-    connectionTimeout: 60000,
-    greetingTimeout: 60000,
-    socketTimeout: 60000,
-    // Force IPv4 by using the IP address directly
-    lookup: function (hostname, options, callback) {
-        // Skip IPv6 lookup and only return IPv4 addresses
-        const dns = require('dns');
-        dns.lookup(hostname, { family: 4 }, callback);
+    connectionTimeout: 30000,
+    greetingTimeout: 30000,
+    socketTimeout: 30000,
+    // Explicitly disable IPv6
+    lookup: (hostname, options, callback) => {
+        options.family = 4;
+        dns.lookup(hostname, options, callback);
     }
 });
 
