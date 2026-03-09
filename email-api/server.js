@@ -365,6 +365,47 @@ app.get('/health', (req, res) => {
     });
 });
 
+// ============ TEST EMAIL ENDPOINT (No Auth Required for Testing) ============
+app.get('/test-email-simple', async (req, res) => {
+    try {
+        const testEmail = req.query.email || 'lohith7780@gmail.com';
+
+        const result = await sendEmail(
+            testEmail,
+            '📧 Test Email from GeoFaceAttend',
+            `Hello,
+
+This is a test email to verify Gmail integration is working correctly.
+
+If you received this, email notifications are working!
+
+Sent at: ${new Date().toLocaleString()}
+
+Best regards,
+GeoFaceAttend Team`
+        );
+
+        if (result.success) {
+            res.json({
+                success: true,
+                message: `✅ Test email sent to ${testEmail}!`,
+                messageId: result.messageId
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                error: result.error
+            });
+        }
+    } catch (error) {
+        console.error('Test email error:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
 // ============ AUTH ENDPOINTS ============
 app.post('/login', async (req, res) => {
     try {
