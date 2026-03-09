@@ -451,39 +451,68 @@
         }
 
         // Register function
-        async function handleRegister() {
-            const name = document.getElementById('regName').value.trim();
-            const email = document.getElementById('regEmail').value.trim();
-            const empId = document.getElementById('regEmpId').value.trim();
-            const password = document.getElementById('regPassword').value;
-            const dept = document.getElementById('regDept').value;
-            const registerBtn = document.getElementById('registerBtn');
+       async function handleRegister() {
+    const name = document.getElementById('regName').value.trim();
+    const email = document.getElementById('regEmail').value.trim();
+    const empId = document.getElementById('regEmpId').value.trim();
+    const password = document.getElementById('regPassword').value;
+    const dept = document.getElementById('regDept').value;
+    const registerBtn = document.getElementById('registerBtn');
 
-            if (!name || !email || !empId || !password || !dept) {
-                alert('Please fill all fields');
-                return;
-            }
+    if (!name || !email || !empId || !password || !dept) {
+        alert('Please fill all fields');
+        return;
+    }
 
-            if (password.length < 6) {
-                alert('Password must be at least 6 characters');
-                return;
-            }
+    if (password.length < 6) {
+        alert('Password must be at least 6 characters');
+        return;
+    }
 
-            registerBtn.disabled = true;
-            registerBtn.innerHTML = '<span class="loading-spinner"></span> Registering...';
+    registerBtn.disabled = true;
+    registerBtn.innerHTML = '<span class="loading-spinner"></span> Registering...';
 
-            try {
-                const response = await fetch(`${API_URL}/register`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        name,
-                        email,
-                        empId,
-                        password,
-                        department: dept
-                    })
-                });
+    try {
+        const response = await fetch(`${API_URL}/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                name, 
+                email, 
+                empId, 
+                password, 
+                department: dept 
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Store user data temporarily for OTP
+            sessionStorage.setItem('pendingUser', JSON.stringify({
+                empId: empId,
+                password: password,
+                name: name
+            }));
+            
+            // Show OTP modal
+            document.getElementById('otpModal').style.display = 'flex';
+            startOTPTimer();
+            
+            // Clear any previous OTP inputs
+            document.querySelectorAll('.otp-input').forEach(input => input.value = '');
+            document.querySelectorAll('.otp-input')[0]?.focus();
+        } else {
+            alert(data.error || 'Registration failed');
+        }
+    } catch (error) {
+        console.error('Registration error:', error);
+        alert('Cannot connect to server');
+    } finally {
+        registerBtn.disabled = false;
+        registerBtn.innerHTML = '<i class="fas fa-user-plus"></i> Register & Send OTP';
+    }
+}
 
                 const data = await response.json();
 
@@ -551,24 +580,39 @@
         }
 
         function verifyOTP() {
-            const inputs = document.querySelectorAll('.otp-input');
-            const otp = Array.from(inputs).map(i => i.value).join('');
+    const inputs = document.querySelectorAll('.otp-input');
+    const otp = Array.from(inputs).map(i => i.value).join('');
 
-            if (otp === '123456') {
-                const user = JSON.parse(sessionStorage.getItem('currentUser'));
-                alert('Login successful! Redirecting...');
-
-                if (user && user.role === 'admin') {
-                    window.location.href = 'admin/dashboard.html';
-                } else {
-                    window.location.href = 'employee/dashboard.html';
-                }
+    if (otp === '123456') {
+        // Check if this is from registration or login
+        const pendingUser = sessionStorage.getItem('pendingUser');
+        
+        if (pendingUser) {
+            // This is a registration
+            const user = JSON.parse(pendingUser);
+            alert('Registration successful! Please login with your credentials.');
+            sessionStorage.removeItem('pendingUser');
+            showLogin();
+        } else {
+            // This is a login
+            const user = JSON.parse(sessionStorage.getItem('currentUser'));
+            if (user && user.role === 'admin') {
+                window.location.href = 'admin/dashboard.html';
             } else {
-                alert('Invalid OTP. Use 123456');
-                inputs.forEach(i => i.value = '');
-                inputs[0].focus();
+                window.location.href = 'employee/dashboard.html';
             }
         }
+        
+        // Close modal
+        document.getElementById('otpModal').style.display = 'none';
+        document.querySelectorAll('.otp-input').forEach(i => i.value = '');
+        
+    } else {
+        alert('Invalid OTP. Use 123456');
+        inputs.forEach(i => i.value = '');
+        inputs[0].focus();
+    }
+}
 
         function closeOTPModal() {
             document.getElementById('otpModal').style.display = 'none';
