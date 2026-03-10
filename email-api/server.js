@@ -8,7 +8,6 @@ const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const { Pool } = require('pg');
 const PDFDocument = require('pdfkit');
 const { execSync } = require('child_process');
 const fs = require('fs');
@@ -18,7 +17,7 @@ const dns = require('dns');
 // Force IPv4 for all DNS lookups
 dns.setDefaultResultOrder('ipv4first');
 
-// Mailgun packages (NO nodemailer)
+// Mailgun packages
 const formData = require('form-data');
 const Mailgun = require('mailgun.js');
 
@@ -28,33 +27,92 @@ const PORT = process.env.PORT || 5001;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-key-change-this';
 const saltRounds = 10;
 
-// ============ DATABASE CONNECTION ============
+// ============ DATABASE CONNECTION (Dual Support) ============
 let pool;
-if (process.env.NODE_ENV === 'production') {
+let isPostgreSQL = false;
+
+// Conditionally load database drivers
+if (process.env.NODE_ENV === 'production' || process.env.USE_POSTGRES === 'true') {
+    // Render PostgreSQL
+    console.log('📦 Using PostgreSQL (Production)');
+    isPostgreSQL = true;
+    const { Pool } = require('pg');
+    
     pool = new Pool({
         connectionString: process.env.DATABASE_URL,
-        ssl: { rejectUnauthorized: false }
+        ssl: {
+            rejectUnauthorized: false
+        }
+    });
+    
+    // Test PostgreSQL connection
+    pool.query('SELECT NOW()', (err, res) => {
+        if (err) {
+            console.error('❌ PostgreSQL connection error:', err);
+        } else {
+            console.log('✅ PostgreSQL connected');
+        }
     });
 } else {
-    pool = new Pool({
-        user: process.env.DB_USER || 'postgres',
+    // Local MySQL (XAMPP)
+    console.log('📦 Using MySQL (Local Development)');
+    const mysql = require('mysql2/promise');
+    
+    pool = mysql.createPool({
         host: process.env.DB_HOST || 'localhost',
+        user: process.env.DB_USER || 'root',
+        password: process.env.DB_PASSWORD || '',
         database: process.env.DB_NAME || 'geofaceattend',
-        password: process.env.DB_PASSWORD || 'postgres',
-        port: process.env.DB_PORT || 5432,
+        waitForConnections: true,
+        connectionLimit: 10,
+        queueLimit: 0
     });
+    
+    // Test MySQL connection
+    (async () => {
+        try {
+            const conn = await pool.getConnection();
+            console.log('✅ MySQL connected');
+            conn.release();
+        } catch (err) {
+            console.error('❌ MySQL connection error:', err);
+        }
+    })();
+}
+
+// ============ QUERY HELPER (Dual Support) ============
+async function query(sql, params) {
+    try {
+        if (isPostgreSQL) {
+            // PostgreSQL uses $1, $2 format
+            let pgSql = sql;
+            // Convert ? to $1, $2 format if needed
+            if (sql.includes('?')) {
+                let paramIndex = 1;
+                pgSql = sql.replace(/\?/g, () => `$${paramIndex++}`);
+            }
+            const res = await pool.query(pgSql, params);
+            return { rows: res.rows };
+        } else {
+            // MySQL uses ? format
+            const [results] = await pool.execute(sql, params);
+            return { rows: results };
+        }
+    } catch (err) {
+        console.error('Query error:', err);
+        throw err;
+    }
 }
 
 // ============ MAILGUN INITIALIZATION ============
-// NO SMTP, NO NODEMAILER - ONLY MAILGUN API
 const mailgun = new Mailgun(formData);
 const mg = mailgun.client({
     username: 'api',
     key: process.env.MAILGUN_API_KEY,
-    url: 'https://api.mailgun.net' // or 'https://api.eu.mailgun.net' for EU region
+    url: 'https://api.mailgun.net'
 });
 
-// Send email function using ONLY Mailgun API
+// Send email function
 async function sendEmail(to, subject, text) {
     try {
         console.log(`📧 Attempting to send email to ${to} via Mailgun...`);
@@ -75,54 +133,59 @@ async function sendEmail(to, subject, text) {
     }
 }
 
-// ============ DATABASE INITIALIZATION FUNCTION ============
+// ============ DATABASE INITIALIZATION ============
 async function initializeDatabase() {
     console.log('🔧 Checking database setup...');
 
     try {
-        // Test connection
-        await pool.query('SELECT NOW()');
-        console.log('✅ Database connected');
-
-        // Check if users table exists
-        const tableCheck = await pool.query(`
-            SELECT EXISTS (
-                SELECT FROM information_schema.tables 
-                WHERE table_name = 'users'
-            );
-        `);
-
-        if (!tableCheck.rows[0].exists) {
-            console.log('🔄 Tables not found. Running migrations...');
-
-            // Run migration script
-            const migrateScript = path.join(__dirname, 'scripts', 'migrate.js');
-            if (fs.existsSync(migrateScript)) {
-                execSync(`node ${migrateScript}`, { stdio: 'inherit' });
-                console.log('✅ Migrations completed');
+        if (isPostgreSQL) {
+            // PostgreSQL check
+            const tableCheck = await pool.query(`
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables 
+                    WHERE table_name = 'users'
+                );
+            `);
+            
+            if (!tableCheck.rows[0].exists) {
+                console.log('🔄 Creating PostgreSQL tables...');
+                await createPostgresTables();
+                
+                console.log('🌱 Creating default users...');
+                await createPostgresDefaultUsers();
             } else {
-                console.log('⚠️ Migration script not found, creating tables directly...');
-                await createTablesDirectly();
-            }
-
-            // Run seed script
-            console.log('🌱 Seeding database with sample data...');
-            const seedScript = path.join(__dirname, 'scripts', 'seed.js');
-            if (fs.existsSync(seedScript)) {
-                execSync(`node ${seedScript}`, { stdio: 'inherit' });
-                console.log('✅ Seeding completed');
-            } else {
-                console.log('⚠️ Seed script not found, creating default users directly...');
-                await createDefaultUsersDirectly();
+                console.log('✅ Database already initialized');
+                
+                // Check if default users exist
+                const userCheck = await pool.query("SELECT COUNT(*) FROM users WHERE emp_id IN ('ADM001', 'EMP001')");
+                if (parseInt(userCheck.rows[0].count) < 2) {
+                    console.log('🌱 Adding missing default users...');
+                    await createPostgresDefaultUsers();
+                }
             }
         } else {
-            console.log('✅ Database already initialized');
-
-            // Check if default users exist
-            const userCheck = await pool.query("SELECT COUNT(*) FROM users WHERE emp_id IN ('ADM001', 'EMP001')");
-            if (parseInt(userCheck.rows[0].count) < 2) {
-                console.log('🌱 Adding missing default users...');
-                await createDefaultUsersDirectly();
+            // MySQL check
+            const [tables] = await pool.query(`
+                SELECT TABLE_NAME 
+                FROM information_schema.tables 
+                WHERE table_schema = DATABASE() AND table_name = 'users'
+            `);
+            
+            if (tables.length === 0) {
+                console.log('🔄 Creating MySQL tables...');
+                await createMySQLTables();
+                
+                console.log('🌱 Creating default users...');
+                await createMySQLDefaultUsers();
+            } else {
+                console.log('✅ Database already initialized');
+                
+                // Check if default users exist
+                const [users] = await pool.query("SELECT COUNT(*) as count FROM users WHERE emp_id IN ('ADM001', 'EMP001')");
+                if (users[0].count < 2) {
+                    console.log('🌱 Adding missing default users...');
+                    await createMySQLDefaultUsers();
+                }
             }
         }
     } catch (error) {
@@ -130,8 +193,122 @@ async function initializeDatabase() {
     }
 }
 
-// Direct table creation if migrate.js doesn't exist
-async function createTablesDirectly() {
+// ============ MySQL TABLE CREATION ============
+async function createMySQLTables() {
+    try {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS users (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                emp_id VARCHAR(50) UNIQUE NOT NULL,
+                name VARCHAR(100) NOT NULL,
+                email VARCHAR(100) UNIQUE NOT NULL,
+                phone VARCHAR(20),
+                password VARCHAR(255) NOT NULL,
+                department VARCHAR(50),
+                position VARCHAR(100),
+                join_date DATE,
+                role VARCHAR(20) DEFAULT 'employee',
+                leave_balance_annual INT DEFAULT 15,
+                leave_balance_sick INT DEFAULT 10,
+                leave_balance_personal INT DEFAULT 5,
+                profile_image TEXT,
+                last_login DATETIME,
+                is_active BOOLEAN DEFAULT true,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS attendance (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                emp_id VARCHAR(50),
+                check_in DATETIME NOT NULL,
+                check_out DATETIME,
+                check_in_location VARCHAR(255),
+                check_out_location VARCHAR(255),
+                check_in_lat DECIMAL(10, 8),
+                check_in_lng DECIMAL(11, 8),
+                check_out_lat DECIMAL(10, 8),
+                check_out_lng DECIMAL(11, 8),
+                method VARCHAR(50) DEFAULT 'face',
+                face_confidence DECIMAL(5, 2),
+                hours_worked DECIMAL(5, 2),
+                is_late BOOLEAN DEFAULT false,
+                is_overtime BOOLEAN DEFAULT false,
+                notes TEXT,
+                date DATE DEFAULT (CURRENT_DATE),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (emp_id) REFERENCES users(emp_id) ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS leave_requests (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                emp_id VARCHAR(50),
+                leave_type VARCHAR(50) NOT NULL,
+                start_date DATE NOT NULL,
+                end_date DATE NOT NULL,
+                days INT NOT NULL,
+                reason TEXT,
+                contact_during_leave VARCHAR(50),
+                status VARCHAR(20) DEFAULT 'pending',
+                applied_on TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                approved_by VARCHAR(50),
+                approved_on DATETIME,
+                rejection_reason TEXT,
+                FOREIGN KEY (emp_id) REFERENCES users(emp_id) ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS qr_codes (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                qr_id VARCHAR(100) UNIQUE NOT NULL,
+                emp_id VARCHAR(50),
+                location VARCHAR(255) NOT NULL,
+                purpose TEXT,
+                start_date DATE NOT NULL,
+                end_date DATE NOT NULL,
+                valid_hours INT DEFAULT 12,
+                allow_checkout BOOLEAN DEFAULT true,
+                generated_by VARCHAR(50),
+                generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                expires_at DATETIME,
+                is_active BOOLEAN DEFAULT true,
+                FOREIGN KEY (emp_id) REFERENCES users(emp_id) ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS outstation_history (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                emp_id VARCHAR(50),
+                qr_id VARCHAR(100),
+                location VARCHAR(255),
+                purpose TEXT,
+                check_in DATETIME NOT NULL,
+                check_out DATETIME,
+                check_in_lat DECIMAL(10, 8),
+                check_in_lng DECIMAL(11, 8),
+                check_out_lat DECIMAL(10, 8),
+                check_out_lng DECIMAL(11, 8),
+                hours_worked DECIMAL(5, 2),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (emp_id) REFERENCES users(emp_id) ON DELETE CASCADE,
+                FOREIGN KEY (qr_id) REFERENCES qr_codes(qr_id)
+            );
+
+            CREATE INDEX idx_users_emp_id ON users(emp_id);
+            CREATE INDEX idx_users_email ON users(email);
+            CREATE INDEX idx_attendance_emp_id ON attendance(emp_id);
+            CREATE INDEX idx_attendance_date ON attendance(date);
+            CREATE INDEX idx_leave_emp_id ON leave_requests(emp_id);
+            CREATE INDEX idx_qr_id ON qr_codes(qr_id);
+            CREATE INDEX idx_outstation_emp_id ON outstation_history(emp_id);
+        `);
+        console.log('✅ MySQL tables created successfully');
+    } catch (error) {
+        console.error('❌ Error creating MySQL tables:', error);
+        throw error;
+    }
+}
+
+// ============ POSTGRESQL TABLE CREATION ============
+async function createPostgresTables() {
     try {
         await pool.query(`
             -- Users table
@@ -238,55 +415,66 @@ async function createTablesDirectly() {
             CREATE INDEX IF NOT EXISTS idx_qr_id ON qr_codes(qr_id);
             CREATE INDEX IF NOT EXISTS idx_outstation_emp_id ON outstation_history(emp_id);
         `);
-        console.log('✅ Tables created successfully');
+        console.log('✅ PostgreSQL tables created successfully');
     } catch (error) {
-        console.error('❌ Error creating tables:', error);
+        console.error('❌ Error creating PostgreSQL tables:', error);
         throw error;
     }
 }
 
-// Direct user creation if seed.js doesn't exist
-async function createDefaultUsersDirectly() {
+// ============ MYSQL DEFAULT USERS ============
+async function createMySQLDefaultUsers() {
     try {
         const adminPassword = await bcrypt.hash('admin123', saltRounds);
         const empPassword = await bcrypt.hash('emp123', saltRounds);
 
-        // Insert admin if not exists
+        await pool.query(`
+            INSERT INTO users (emp_id, name, email, phone, password, department, position, join_date, role)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE id=id
+        `, ['ADM001', 'Admin User', 'admin@company.com', '+1234567890', adminPassword, 'Management', 'System Administrator', new Date().toISOString().split('T')[0], 'admin']);
+
+        await pool.query(`
+            INSERT INTO users (emp_id, name, email, phone, password, department, position, join_date, role)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE id=id
+        `, ['EMP001', 'John Employee', 'john@company.com', '+1234567891', empPassword, 'Engineering', 'Software Engineer', new Date().toISOString().split('T')[0], 'employee']);
+
+        console.log('✅ MySQL default users created');
+        console.log('   Admin: ADM001 / admin123');
+        console.log('   Employee: EMP001 / emp123');
+    } catch (error) {
+        console.error('❌ Error creating MySQL default users:', error);
+    }
+}
+
+// ============ POSTGRESQL DEFAULT USERS ============
+async function createPostgresDefaultUsers() {
+    try {
+        const adminPassword = await bcrypt.hash('admin123', saltRounds);
+        const empPassword = await bcrypt.hash('emp123', saltRounds);
+
         await pool.query(`
             INSERT INTO users (emp_id, name, email, phone, password, department, position, join_date, role)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             ON CONFLICT (emp_id) DO NOTHING
         `, ['ADM001', 'Admin User', 'admin@company.com', '+1234567890', adminPassword, 'Management', 'System Administrator', new Date().toISOString().split('T')[0], 'admin']);
 
-        // Insert employee if not exists
         await pool.query(`
             INSERT INTO users (emp_id, name, email, phone, password, department, position, join_date, role)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             ON CONFLICT (emp_id) DO NOTHING
         `, ['EMP001', 'John Employee', 'john@company.com', '+1234567891', empPassword, 'Engineering', 'Software Engineer', new Date().toISOString().split('T')[0], 'employee']);
 
-        console.log('✅ Default users created successfully');
+        console.log('✅ PostgreSQL default users created');
         console.log('   Admin: ADM001 / admin123');
         console.log('   Employee: EMP001 / emp123');
     } catch (error) {
-        console.error('❌ Error creating default users:', error);
+        console.error('❌ Error creating PostgreSQL default users:', error);
     }
 }
 
-// ============ HELPER FUNCTIONS ============
-
-// Query helper
-async function query(text, params) {
-    try {
-        const res = await pool.query(text, params);
-        return res;
-    } catch (err) {
-        console.error('Query error:', err);
-        throw err;
-    }
-}
-
-// Authentication middleware
+// ============ AUTHENTICATION MIDDLEWARE ============
 function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
@@ -304,7 +492,6 @@ function authenticateToken(req, res, next) {
     });
 }
 
-// Admin authorization
 function requireAdmin(req, res, next) {
     if (req.user.role !== 'admin') {
         return res.status(403).json({ success: false, error: 'Admin access required' });
@@ -333,6 +520,16 @@ app.use(cors({
 
 app.use(express.json({ limit: '10mb' }));
 
+// ============ STATIC FILE SERVING ============
+app.use(express.static(path.join(__dirname, '..')));
+app.use('/employee', express.static(path.join(__dirname, '../employee')));
+app.use('/admin', express.static(path.join(__dirname, '../admin')));
+app.use('/assets', express.static(path.join(__dirname, '../assets')));
+
+app.get('/', (req, res) => {
+    res.redirect('/employee/dashboard.html');
+});
+
 // ============ RATE LIMITING ============
 const generalLimiter = rateLimit({
     windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
@@ -359,7 +556,7 @@ app.get('/health', (req, res) => {
         status: 'OK',
         time: new Date(),
         version: '2.0.0',
-        database: 'connected',
+        database: isPostgreSQL ? 'PostgreSQL' : 'MySQL',
         email: 'mailgun'
     });
 });
@@ -368,26 +565,16 @@ app.get('/health', (req, res) => {
 app.get('/test-email-simple', async (req, res) => {
     try {
         const testEmail = req.query.email || 'chintulohith917@gmail.com';
-
         const result = await sendEmail(
             testEmail,
-            '📧 Test from GeoFaceAttend (Mailgun)',
-            `Hello,
-
-This is a test email sent via Mailgun from your GeoFaceAttend application.
-
-If you received this, Mailgun integration is working!
-
-Sent at: ${new Date().toLocaleString()}
-
-Best regards,
-GeoFaceAttend Team`
+            '📧 Test from GeoFaceAttend',
+            `Hello,\n\nThis is a test email from GeoFaceAttend.\n\nSent at: ${new Date().toLocaleString()}\n\nBest regards,\nGeoFaceAttend Team`
         );
 
         if (result.success) {
             res.json({
                 success: true,
-                message: `✅ Test email sent to ${testEmail} via Mailgun!`,
+                message: `✅ Test email sent to ${testEmail}!`,
                 messageId: result.messageId
             });
         } else {
@@ -414,7 +601,7 @@ app.post('/login', async (req, res) => {
             return res.status(400).json({ success: false, error: 'Missing employee ID or password' });
         }
 
-        const result = await query('SELECT * FROM users WHERE emp_id = $1', [empId]);
+        const result = await query('SELECT * FROM users WHERE emp_id = ?', [empId]);
         const user = result.rows[0];
 
         if (!user) {
@@ -455,9 +642,8 @@ app.post('/register', async (req, res) => {
     try {
         const { name, email, empId, phone, password, department, position, joinDate } = req.body;
 
-        // Check if user already exists
         const existing = await query(
-            'SELECT * FROM users WHERE emp_id = $1 OR email = $2',
+            'SELECT * FROM users WHERE emp_id = ? OR email = ?',
             [empId, email]
         );
 
@@ -468,48 +654,50 @@ app.post('/register', async (req, res) => {
             });
         }
 
-        // Hash password
         const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-        // Insert new user
-        const result = await query(
-            `INSERT INTO users 
-             (emp_id, name, email, phone, password, department, position, join_date, role, 
-              leave_balance_annual, leave_balance_sick, leave_balance_personal)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-             RETURNING id, emp_id, name, email, department, role`,
-            [
-                empId,
-                name,
-                email,
-                phone || null,
-                hashedPassword,
-                department,
-                position || null,
-                joinDate || new Date().toISOString().split('T')[0],
-                'employee',
-                15, 10, 5
-            ]
-        );
+        let result;
+        if (isPostgreSQL) {
+            result = await query(
+                `INSERT INTO users 
+                 (emp_id, name, email, phone, password, department, position, join_date, role, 
+                  leave_balance_annual, leave_balance_sick, leave_balance_personal)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                 RETURNING id, emp_id, name, email, department, role`,
+                [
+                    empId, name, email, phone || null, hashedPassword,
+                    department, position || null, joinDate || new Date().toISOString().split('T')[0],
+                    'employee', 15, 10, 5
+                ]
+            );
+        } else {
+            result = await query(
+                `INSERT INTO users 
+                 (emp_id, name, email, phone, password, department, position, join_date, role, 
+                  leave_balance_annual, leave_balance_sick, leave_balance_personal)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 RETURNING id, emp_id, name, email, department, role`,
+                [
+                    empId, name, email, phone || null, hashedPassword,
+                    department, position || null, joinDate || new Date().toISOString().split('T')[0],
+                    'employee', 15, 10, 5
+                ]
+            );
+        }
 
         const newUser = result.rows[0];
 
-        // Send welcome email via Mailgun
         if (newUser.email) {
             try {
-                const emailResult = await sendEmail(
+                await sendEmail(
                     newUser.email,
                     '🎉 Welcome to GeoFaceAttend!',
                     `Hello ${newUser.name},\n\nYour account has been created successfully.\n\nEmployee ID: ${newUser.emp_id}\nDepartment: ${newUser.department}\n\nLogin here: https://geofaceattend-1.onrender.com/auth.html\n\nBest regards,\nGeoFaceAttend Team`
                 );
                 console.log('✅ Welcome email sent to:', newUser.email);
-                console.log('📧 Email result:', emailResult);
             } catch (emailError) {
                 console.error('❌ Welcome email failed:', emailError);
-                // Don't fail registration if email fails
             }
-        } else {
-            console.log('⚠️ No email provided for user:', newUser.emp_id);
         }
 
         res.json({ success: true, message: 'Registration successful', user: newUser });
@@ -526,9 +714,8 @@ app.get('/api/users/profile', authenticateToken, async (req, res) => {
         const result = await query(
             `SELECT id, emp_id, name, email, phone, department, position, join_date, role,
                     leave_balance_annual, leave_balance_sick, leave_balance_personal,
-                    to_char(created_at, 'YYYY-MM-DD') as created_at,
-                    to_char(last_login, 'YYYY-MM-DD HH24:MI:SS') as last_login
-             FROM users WHERE emp_id = $1`,
+                    created_at, last_login
+             FROM users WHERE emp_id = ?`,
             [req.user.empId]
         );
 
@@ -565,14 +752,13 @@ app.get('/api/users/profile', authenticateToken, async (req, res) => {
     }
 });
 
-// ============ EMPLOYEE ENDPOINTS (Admin only) ============
+// ============ EMPLOYEE ENDPOINTS ============
 app.get('/api/employees', authenticateToken, requireAdmin, async (req, res) => {
     try {
         const result = await query(
             `SELECT id, emp_id, name, email, phone, department, position, join_date, role,
                     leave_balance_annual, leave_balance_sick, leave_balance_personal,
-                    to_char(created_at, 'YYYY-MM-DD') as created_at,
-                    is_active
+                    created_at, is_active
              FROM users 
              ORDER BY created_at DESC`
         );
@@ -593,9 +779,8 @@ app.post('/api/attendance/checkin', authenticateToken, async (req, res) => {
         const now = new Date();
         const today = now.toISOString().split('T')[0];
 
-        // Check if already checked in today
         const existing = await query(
-            'SELECT * FROM attendance WHERE emp_id = $1 AND date = $2 AND check_out IS NULL',
+            'SELECT * FROM attendance WHERE emp_id = ? AND date = ? AND check_out IS NULL',
             [empId, today]
         );
 
@@ -603,19 +788,28 @@ app.post('/api/attendance/checkin', authenticateToken, async (req, res) => {
             return res.status(400).json({ error: 'Already checked in today' });
         }
 
-        // Determine if late (after 9:15 AM)
         const lateThreshold = new Date();
         lateThreshold.setHours(9, 15, 0, 0);
         const isLate = now > lateThreshold;
 
-        // Insert check-in record
-        const result = await query(
-            `INSERT INTO attendance 
-             (emp_id, check_in, check_in_location, check_in_lat, check_in_lng, method, face_confidence, is_late, date)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-             RETURNING *`,
-            [empId, now.toISOString(), location, lat, lng, method, faceConfidence, isLate, today]
-        );
+        let result;
+        if (isPostgreSQL) {
+            result = await query(
+                `INSERT INTO attendance 
+                 (emp_id, check_in, check_in_location, check_in_lat, check_in_lng, method, face_confidence, is_late, date)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                 RETURNING *`,
+                [empId, now, location, lat, lng, method, faceConfidence, isLate, today]
+            );
+        } else {
+            result = await query(
+                `INSERT INTO attendance 
+                 (emp_id, check_in, check_in_location, check_in_lat, check_in_lng, method, face_confidence, is_late, date)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 RETURNING *`,
+                [empId, now, location, lat, lng, method, faceConfidence, isLate, today]
+            );
+        }
 
         res.json({ success: true, attendance: result.rows[0] });
 
@@ -631,9 +825,8 @@ app.post('/api/attendance/checkout', authenticateToken, async (req, res) => {
         const empId = req.user.empId;
         const today = new Date().toISOString().split('T')[0];
 
-        // Find active check-in
         const active = await query(
-            'SELECT * FROM attendance WHERE emp_id = $1 AND date = $2 AND check_out IS NULL',
+            'SELECT * FROM attendance WHERE emp_id = ? AND date = ? AND check_out IS NULL',
             [empId, today]
         );
 
@@ -645,15 +838,26 @@ app.post('/api/attendance/checkout', authenticateToken, async (req, res) => {
         const now = new Date();
         const hoursWorked = (now - checkIn) / (1000 * 60 * 60);
 
-        // Update check-out
-        const result = await query(
-            `UPDATE attendance 
-             SET check_out = $1, check_out_location = $2, check_out_lat = $3, check_out_lng = $4,
-                 hours_worked = $5
-             WHERE id = $6
-             RETURNING *`,
-            [now.toISOString(), location, lat, lng, hoursWorked, active.rows[0].id]
-        );
+        let result;
+        if (isPostgreSQL) {
+            result = await query(
+                `UPDATE attendance 
+                 SET check_out = $1, check_out_location = $2, check_out_lat = $3, check_out_lng = $4,
+                     hours_worked = $5
+                 WHERE id = $6
+                 RETURNING *`,
+                [now, location, lat, lng, hoursWorked, active.rows[0].id]
+            );
+        } else {
+            result = await query(
+                `UPDATE attendance 
+                 SET check_out = ?, check_out_location = ?, check_out_lat = ?, check_out_lng = ?,
+                     hours_worked = ?
+                 WHERE id = ?
+                 RETURNING *`,
+                [now, location, lat, lng, hoursWorked, active.rows[0].id]
+            );
+        }
 
         res.json({ success: true, attendance: result.rows[0] });
 
@@ -667,30 +871,27 @@ app.get('/api/attendance/stats', authenticateToken, async (req, res) => {
     try {
         const empId = req.user.empId;
 
-        // Get today's stats
         const todayResult = await query(
             `SELECT 
                 COUNT(*) as checked_in,
                 SUM(CASE WHEN is_late THEN 1 ELSE 0 END) as late
              FROM attendance 
-             WHERE emp_id = $1 AND date = CURRENT_DATE`,
+             WHERE emp_id = ? AND date = CURRENT_DATE`,
             [empId]
         );
 
-        // Get weekly stats
         const weeklyResult = await query(
             `SELECT 
                 EXTRACT(DOW FROM date) as day_of_week,
                 COUNT(*) as count
              FROM attendance 
-             WHERE emp_id = $1 
+             WHERE emp_id = ? 
                AND date >= CURRENT_DATE - INTERVAL '7 days'
              GROUP BY EXTRACT(DOW FROM date)
              ORDER BY day_of_week`,
             [empId]
         );
 
-        // Get department stats for admin
         let departmentStats = [];
         if (req.user.role === 'admin') {
             const deptResult = await query(
@@ -722,21 +923,29 @@ app.post('/api/leaves/apply', authenticateToken, async (req, res) => {
         const { leaveType, startDate, endDate, reason, contact } = req.body;
         const empId = req.user.empId;
 
-        // Calculate days
         const start = new Date(startDate);
         const end = new Date(endDate);
         const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
 
-        // Create leave request
-        const result = await query(
-            `INSERT INTO leave_requests 
-             (emp_id, leave_type, start_date, end_date, days, reason, contact_during_leave)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)
-             RETURNING *`,
-            [empId, leaveType, startDate, endDate, days, reason, contact]
-        );
+        let result;
+        if (isPostgreSQL) {
+            result = await query(
+                `INSERT INTO leave_requests 
+                 (emp_id, leave_type, start_date, end_date, days, reason, contact_during_leave)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7)
+                 RETURNING *`,
+                [empId, leaveType, startDate, endDate, days, reason, contact]
+            );
+        } else {
+            result = await query(
+                `INSERT INTO leave_requests 
+                 (emp_id, leave_type, start_date, end_date, days, reason, contact_during_leave)
+                 VALUES (?, ?, ?, ?, ?, ?, ?)
+                 RETURNING *`,
+                [empId, leaveType, startDate, endDate, days, reason, contact]
+            );
+        }
 
-        // Notify admin via Mailgun
         const adminEmail = process.env.ADMIN_EMAIL || 'admin@company.com';
         try {
             await sendEmail(
@@ -744,7 +953,6 @@ app.post('/api/leaves/apply', authenticateToken, async (req, res) => {
                 '📋 New Leave Request',
                 `Employee: ${req.user.name}\nType: ${leaveType}\nFrom: ${startDate} to ${endDate}\nReason: ${reason}`
             );
-            console.log('✅ Admin notification sent');
         } catch (emailError) {
             console.log('Admin notification could not be sent');
         }
@@ -760,7 +968,7 @@ app.post('/api/leaves/apply', authenticateToken, async (req, res) => {
 app.get('/api/leaves/my', authenticateToken, async (req, res) => {
     try {
         const result = await query(
-            'SELECT * FROM leave_requests WHERE emp_id = $1 ORDER BY applied_on DESC',
+            'SELECT * FROM leave_requests WHERE emp_id = ? ORDER BY applied_on DESC',
             [req.user.empId]
         );
 
@@ -793,12 +1001,11 @@ app.post('/api/leaves/:id/approve', authenticateToken, requireAdmin, async (req,
     try {
         const { id } = req.params;
 
-        // Get leave details with employee email
         const leaveResult = await query(`
             SELECT lr.*, u.email, u.name 
             FROM leave_requests lr
             JOIN users u ON lr.emp_id = u.emp_id
-            WHERE lr.id = $1
+            WHERE lr.id = ?
         `, [id]);
 
         if (leaveResult.rows.length === 0) {
@@ -807,23 +1014,32 @@ app.post('/api/leaves/:id/approve', authenticateToken, requireAdmin, async (req,
 
         const leave = leaveResult.rows[0];
 
-        await query(
-            `UPDATE leave_requests 
-             SET status = 'approved', 
-                 approved_by = $1, 
-                 approved_on = CURRENT_TIMESTAMP
-             WHERE id = $2`,
-            [req.user.empId, id]
-        );
+        if (isPostgreSQL) {
+            await query(
+                `UPDATE leave_requests 
+                 SET status = 'approved', 
+                     approved_by = $1, 
+                     approved_on = CURRENT_TIMESTAMP
+                 WHERE id = $2`,
+                [req.user.empId, id]
+            );
+        } else {
+            await query(
+                `UPDATE leave_requests 
+                 SET status = 'approved', 
+                     approved_by = ?, 
+                     approved_on = NOW()
+                 WHERE id = ?`,
+                [req.user.empId, id]
+            );
+        }
 
-        // Send approval email via Mailgun
         try {
             await sendEmail(
                 leave.email,
                 '✅ Leave Approved',
                 `Hello ${leave.name},\n\nYour leave request from ${leave.start_date} to ${leave.end_date} has been APPROVED.\n\nBest regards,\nGeoFaceAttend Team`
             );
-            console.log('✅ Approval email sent to:', leave.email);
         } catch (emailError) {
             console.log('Approval email could not be sent');
         }
@@ -845,12 +1061,11 @@ app.post('/api/leaves/:id/reject', authenticateToken, requireAdmin, async (req, 
             return res.status(400).json({ error: 'Rejection reason is required' });
         }
 
-        // Get leave details with employee email
         const leaveResult = await query(`
             SELECT lr.*, u.email, u.name 
             FROM leave_requests lr
             JOIN users u ON lr.emp_id = u.emp_id
-            WHERE lr.id = $1
+            WHERE lr.id = ?
         `, [id]);
 
         if (leaveResult.rows.length === 0) {
@@ -859,24 +1074,34 @@ app.post('/api/leaves/:id/reject', authenticateToken, requireAdmin, async (req, 
 
         const leave = leaveResult.rows[0];
 
-        await query(
-            `UPDATE leave_requests 
-             SET status = 'rejected', 
-                 rejection_reason = $1,
-                 reviewed_by = $2,
-                 reviewed_at = CURRENT_TIMESTAMP
-             WHERE id = $3`,
-            [reason, req.user.empId, id]
-        );
+        if (isPostgreSQL) {
+            await query(
+                `UPDATE leave_requests 
+                 SET status = 'rejected', 
+                     rejection_reason = $1,
+                     approved_by = $2,
+                     approved_on = CURRENT_TIMESTAMP
+                 WHERE id = $3`,
+                [reason, req.user.empId, id]
+            );
+        } else {
+            await query(
+                `UPDATE leave_requests 
+                 SET status = 'rejected', 
+                     rejection_reason = ?,
+                     approved_by = ?,
+                     approved_on = NOW()
+                 WHERE id = ?`,
+                [reason, req.user.empId, id]
+            );
+        }
 
-        // Send rejection email via Mailgun
         try {
             await sendEmail(
                 leave.email,
                 '❌ Leave Rejected',
                 `Hello ${leave.name},\n\nYour leave request from ${leave.start_date} to ${leave.end_date} has been REJECTED.\nReason: ${reason}\n\nBest regards,\nGeoFaceAttend Team`
             );
-            console.log('✅ Rejection email sent to:', leave.email);
         } catch (emailError) {
             console.log('Rejection email could not be sent');
         }
@@ -894,21 +1119,29 @@ app.post('/api/qr/generate', authenticateToken, requireAdmin, async (req, res) =
     try {
         const { empId, location, startDate, endDate, purpose, validHours, allowCheckout } = req.body;
 
-        // Generate unique QR ID
         const qrId = `QR-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
 
-        // Calculate expiry
         const expiresAt = new Date(endDate);
         expiresAt.setHours(23, 59, 59, 999);
 
-        // Insert QR code record
-        const result = await query(
-            `INSERT INTO qr_codes 
-             (qr_id, emp_id, location, purpose, start_date, end_date, valid_hours, allow_checkout, generated_by, expires_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-             RETURNING *`,
-            [qrId, empId, location, purpose, startDate, endDate, validHours || 12, allowCheckout !== false, req.user.empId, expiresAt]
-        );
+        let result;
+        if (isPostgreSQL) {
+            result = await query(
+                `INSERT INTO qr_codes 
+                 (qr_id, emp_id, location, purpose, start_date, end_date, valid_hours, allow_checkout, generated_by, expires_at)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                 RETURNING *`,
+                [qrId, empId, location, purpose, startDate, endDate, validHours || 12, allowCheckout !== false, req.user.empId, expiresAt]
+            );
+        } else {
+            result = await query(
+                `INSERT INTO qr_codes 
+                 (qr_id, emp_id, location, purpose, start_date, end_date, valid_hours, allow_checkout, generated_by, expires_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 RETURNING *`,
+                [qrId, empId, location, purpose, startDate, endDate, validHours || 12, allowCheckout !== false, req.user.empId, expiresAt]
+            );
+        }
 
         res.json({ success: true, qr: result.rows[0] });
 
@@ -925,13 +1158,12 @@ app.get('/api/qr/active', authenticateToken, async (req, res) => {
             FROM qr_codes q
             JOIN users u ON q.emp_id = u.emp_id
             WHERE q.is_active = true 
-              AND q.expires_at > CURRENT_TIMESTAMP
+              AND q.expires_at > NOW()
         `;
         const params = [];
 
-        // If employee, only show their QR codes
         if (req.user.role !== 'admin') {
-            queryText += ` AND q.emp_id = $1`;
+            queryText += isPostgreSQL ? ` AND q.emp_id = $1` : ` AND q.emp_id = ?`;
             params.push(req.user.empId);
         }
 
@@ -960,25 +1192,22 @@ app.get('/api/reports/attendance/pdf', authenticateToken, async (req, res) => {
                 COALESCE(SUM(a.hours_worked), 0) as total_hours
             FROM users u
             LEFT JOIN attendance a ON u.emp_id = a.emp_id 
-                AND a.date BETWEEN $1 AND $2
+                AND a.date BETWEEN ? AND ?
             WHERE u.role = 'employee'
             GROUP BY u.id, u.name, u.emp_id, u.department
         `, [startDate, endDate]);
 
-        // Create PDF
         const doc = new PDFDocument();
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename=attendance-report-${startDate}-to-${endDate}.pdf`);
         doc.pipe(res);
 
-        // Add content
         doc.fontSize(20).text('GeoFaceAttend - Attendance Report', { align: 'center' });
         doc.moveDown();
         doc.fontSize(12).text(`Period: ${startDate} to ${endDate}`, { align: 'center' });
         doc.moveDown();
         doc.moveDown();
 
-        // Table headers
         doc.fontSize(10).font('Helvetica-Bold');
         doc.text('Employee', 50, doc.y);
         doc.text('ID', 200, doc.y);
@@ -987,7 +1216,6 @@ app.get('/api/reports/attendance/pdf', authenticateToken, async (req, res) => {
         doc.text('Hours', 450, doc.y);
         doc.moveDown();
 
-        // Table rows
         doc.font('Helvetica');
         result.rows.forEach(row => {
             doc.text(row.name, 50, doc.y);
@@ -1047,8 +1275,8 @@ app.use((err, req, res, next) => {
 app.listen(PORT, async () => {
     console.log(`\n🔒 GeoFaceAttend Secure API`);
     console.log(`📡 Running on: http://localhost:${PORT}`);
+    console.log(`📦 Database: ${isPostgreSQL ? 'PostgreSQL' : 'MySQL'}`);
 
-    // Initialize database on startup
     await initializeDatabase();
 
     console.log(`\n🚀 Server ready!\n`);
