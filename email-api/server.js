@@ -23,6 +23,7 @@ const Mailgun = require('mailgun.js');
 
 // Create Express app
 const app = express();
+app.set('trust proxy', true);
 const PORT = process.env.PORT || 5001;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-key-change-this';
 const saltRounds = 10;
@@ -37,14 +38,14 @@ if (process.env.NODE_ENV === 'production' || process.env.USE_POSTGRES === 'true'
     console.log('📦 Using PostgreSQL (Production)');
     isPostgreSQL = true;
     const { Pool } = require('pg');
-    
+
     pool = new Pool({
         connectionString: process.env.DATABASE_URL,
         ssl: {
             rejectUnauthorized: false
         }
     });
-    
+
     // Test PostgreSQL connection
     pool.query('SELECT NOW()', (err, res) => {
         if (err) {
@@ -57,7 +58,7 @@ if (process.env.NODE_ENV === 'production' || process.env.USE_POSTGRES === 'true'
     // Local MySQL (XAMPP)
     console.log('📦 Using MySQL (Local Development)');
     const mysql = require('mysql2/promise');
-    
+
     pool = mysql.createPool({
         host: process.env.DB_HOST || 'localhost',
         user: process.env.DB_USER || 'root',
@@ -67,7 +68,7 @@ if (process.env.NODE_ENV === 'production' || process.env.USE_POSTGRES === 'true'
         connectionLimit: 10,
         queueLimit: 0
     });
-    
+
     // Test MySQL connection
     (async () => {
         try {
@@ -118,7 +119,7 @@ async function sendEmail(to, subject, text) {
         console.log(`📧 Attempting to send email to ${to} via Mailgun...`);
 
         const result = await mg.messages.create(process.env.MAILGUN_DOMAIN, {
-            from: `GeoFaceAttend <noreply@${process.env.MAILGUN_DOMAIN}>`,
+            from: `GeoFaceAttend <postmaster@${process.env.MAILGUN_DOMAIN}>`, // Change this line!
             to: [to],
             subject: subject,
             text: text,
@@ -146,16 +147,16 @@ async function initializeDatabase() {
                     WHERE table_name = 'users'
                 );
             `);
-            
+
             if (!tableCheck.rows[0].exists) {
                 console.log('🔄 Creating PostgreSQL tables...');
                 await createPostgresTables();
-                
+
                 console.log('🌱 Creating default users...');
                 await createPostgresDefaultUsers();
             } else {
                 console.log('✅ Database already initialized');
-                
+
                 // Check if default users exist
                 const userCheck = await pool.query("SELECT COUNT(*) FROM users WHERE emp_id IN ('ADM001', 'EMP001')");
                 if (parseInt(userCheck.rows[0].count) < 2) {
@@ -170,16 +171,16 @@ async function initializeDatabase() {
                 FROM information_schema.tables 
                 WHERE table_schema = DATABASE() AND table_name = 'users'
             `);
-            
+
             if (tables.length === 0) {
                 console.log('🔄 Creating MySQL tables...');
                 await createMySQLTables();
-                
+
                 console.log('🌱 Creating default users...');
                 await createMySQLDefaultUsers();
             } else {
                 console.log('✅ Database already initialized');
-                
+
                 // Check if default users exist
                 const [users] = await pool.query("SELECT COUNT(*) as count FROM users WHERE emp_id IN ('ADM001', 'EMP001')");
                 if (users[0].count < 2) {
