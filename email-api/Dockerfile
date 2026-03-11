@@ -1,11 +1,11 @@
 ﻿FROM node:18-alpine
 WORKDIR /app
 
-# Copy package files from email-api
-COPY email-api/package*.json ./email-api/
+# Copy package files (they're in the current directory)
+COPY package*.json ./
 
 # Install dependencies
-RUN cd email-api && npm install
+RUN npm install
 
 # Copy all source code
 COPY . .
@@ -14,4 +14,4 @@ COPY . .
 EXPOSE 10000
 
 # Start the server
-CMD ["node", "email-api/server.js"]
+CMD ["node", "server.js"]
