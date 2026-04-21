@@ -319,26 +319,35 @@
     </div>
 
     <!-- OTP Modal -->
-    <div id="otpModal" class="modal-overlay">
-        <div class="otp-modal glass auth-card">
-            <h2 class="auth-title">Verify Signal</h2>
-            <p class="auth-subtitle">A verification packet was sent to your email.</p>
+    <div id="otpModal" class="modal-overlay" style="display: none;">
+        <div class="otp-modal glass auth-card" style="text-align: center; max-width: 450px;">
+            <div style="font-size: 3rem; color: var(--accent-primary); margin-bottom: 16px;"><i class="fas fa-shield-alt"></i></div>
+            <h2 class="auth-title">Email Verification</h2>
+            <p class="auth-subtitle">Enter the 6-digit code sent to your email</p>
             
-            <div class="otp-inputs" style="margin: 24px 0;">
-                <input type="text" maxlength="1" class="otp-input" onkeyup="moveToNext(this, 0)" onkeypress="allowOnlyNumbers(event)">
-                <input type="text" maxlength="1" class="otp-input" onkeyup="moveToNext(this, 1)" onkeypress="allowOnlyNumbers(event)">
-                <input type="text" maxlength="1" class="otp-input" onkeyup="moveToNext(this, 2)" onkeypress="allowOnlyNumbers(event)">
-                <input type="text" maxlength="1" class="otp-input" onkeyup="moveToNext(this, 3)" onkeypress="allowOnlyNumbers(event)">
+            <div class="otp-inputs" style="margin: 32px 0; display: flex; gap: 12px; justify-content: center;">
+                <input type="text" maxlength="1" class="otp-input" onkeyup="moveToNext(this, 0)" onkeypress="allowOnlyNumbers(event)" style="width: 50px; height: 60px; font-size: 1.5rem; text-align: center; border-radius: 12px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.05);">
+                <input type="text" maxlength="1" class="otp-input" onkeyup="moveToNext(this, 1)" onkeypress="allowOnlyNumbers(event)" style="width: 50px; height: 60px; font-size: 1.5rem; text-align: center; border-radius: 12px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.05);">
+                <input type="text" maxlength="1" class="otp-input" onkeyup="moveToNext(this, 2)" onkeypress="allowOnlyNumbers(event)" style="width: 50px; height: 60px; font-size: 1.5rem; text-align: center; border-radius: 12px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.05);">
+                <input type="text" maxlength="1" class="otp-input" onkeyup="moveToNext(this, 3)" onkeypress="allowOnlyNumbers(event)" style="width: 50px; height: 60px; font-size: 1.5rem; text-align: center; border-radius: 12px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.05);">
+                <input type="text" maxlength="1" class="otp-input" onkeyup="moveToNext(this, 4)" onkeypress="allowOnlyNumbers(event)" style="width: 50px; height: 60px; font-size: 1.5rem; text-align: center; border-radius: 12px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.05);">
+                <input type="text" maxlength="1" class="otp-input" onkeyup="moveToNext(this, 5)" onkeypress="allowOnlyNumbers(event)" style="width: 50px; height: 60px; font-size: 1.5rem; text-align: center; border-radius: 12px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.05);">
             </div>
 
-            <div id="otpTimer" style="margin-bottom: 20px; font-size: 1.1rem; color: var(--accent-primary); font-family: 'JetBrains Mono';">01:00</div>
-
-            <button class="neon-btn" style="width: 100%;" id="verifyBtn" onclick="verifyOTP()">Verify Identity</button>
-            
-            <div style="margin-top: 20px; display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem;">
-                <button id="resendBtn" onclick="resendOTP()" style="background: none; border: none; color: var(--accent-primary); cursor: pointer; font-weight: 600;">Resend Code</button>
-                <button onclick="closeOTPModal()" style="background: none; border: none; color: var(--text-muted); cursor: pointer;">Cancel</button>
+            <div style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-bottom: 24px; font-family: 'JetBrains Mono';">
+                <span id="otpTimer" style="color: var(--accent-primary); font-weight: 600;">02:00</span>
+                <button id="resendBtn" onclick="resendOTP()" style="background: none; border: none; color: var(--text-sub); cursor: pointer; font-size: 0.9rem;">Resend Code</button>
             </div>
+
+            <button class="neon-btn" style="width: 100%; justify-content: center;" id="verifyBtn" onclick="verifyOTP()">
+                <i class="fas fa-check"></i> Verify & Continue
+            </button>
+            
+            <div style="margin-top: 24px; padding: 12px; background: rgba(99, 102, 241, 0.1); border-radius: 8px; font-size: 0.85rem; color: var(--text-sub);">
+                Demo: Use code <strong>123456</strong>
+            </div>
+
+            <button onclick="closeOTPModal()" style="margin-top: 16px; background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.8rem;">Cancel Synchronization</button>
         </div>
     </div>
 
