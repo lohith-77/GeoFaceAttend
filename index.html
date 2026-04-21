@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GeoFaceAttend | Biometric Intelligence</title>
+    
+    <!-- Design Foundation -->
+    <link rel="stylesheet" href="assets/css/theme.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- SEO & PWA -->
+    <meta name="description" content="Next-generation biometric attendance system with geospatial precision.">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#6366f1">
+    
+    <style>
+        .hero-section {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            padding: 20px;
+            text-align: center;
+            z-index: 10;
+        }
+
+        .bg-blobs {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .blob {
+            position: absolute;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, var(--accent-primary) 0%, transparent 70%);
+            filter: blur(100px);
+            opacity: 0.2;
+            border-radius: 50%;
+        }
+
+        .blob-1 { top: -100px; right: -100px; animation: float 15s infinite alternate; }
+        .blob-2 { bottom: -100px; left: -100px; animation: float 20s infinite alternate-reverse; }
+
+        .main-card {
+            padding: 60px;
+            border-radius: var(--radius-xl);
+            max-width: 900px;
+            width: 100%;
+            animation: scale-up 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .logo-wrapper {
+            margin-bottom: 40px;
+            animation: slide-in-top 0.6s ease;
+        }
+
+        .logo-icon {
+            font-size: 64px;
+            margin-bottom: 15px;
+            display: inline-block;
+            filter: drop-shadow(0 0 15px var(--accent-primary));
+        }
+
+        .hero-title {
+            font-size: clamp(2.5rem, 8vw, 4.5rem);
+            font-weight: 800;
+            margin-bottom: 16px;
+            letter-spacing: -2px;
+            line-height: 1.1;
+        }
+
+        .hero-subtitle {
+            font-size: 1.25rem;
+            color: var(--text-sub);
+            max-width: 600px;
+            margin: 0 auto 48px;
+        }
+
+        .role-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+            width: 100%;
+        }
+
+        .role-option {
+            padding: 32px;
+            border-radius: var(--radius-lg);
+            text-decoration: none;
+            color: inherit;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--glass-border);
+            background: rgba(255, 255, 255, 0.03);
+            text-align: left;
+        }
+
+        .role-option:hover {
+            background: rgba(255, 255, 255, 0.08);
+            transform: translateY(-8px);
+            border-color: var(--accent-primary);
+            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
+        }
+
+        .role-option i {
+            font-size: 32px;
+            margin-bottom: 24px;
+            display: block;
+        }
+
+        .role-option.employee i { color: var(--accent-secondary); }
+        .role-option.admin i { color: var(--accent-primary); }
+
+        .role-name {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .role-desc {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        .system-status {
+            margin-top: 60px;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            background: var(--success);
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 10px var(--success);
+        }
+
+        .time-widget {
+            position: absolute;
+            top: 40px;
+            right: 40px;
+            text-align: right;
+        }
+
+        #currentTime {
+            font-size: 1.5rem;
+            font-weight: 600;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .offline-toast {
+            position: fixed;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            padding: 12px 24px;
+            border-radius: var(--radius-md);
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            z-index: 1000;
+        }
+
+        .offline-toast.visible {
+            transform: translateX(-50%) translateY(0);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="bg-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+    </div>
+
+    <div class="time-widget animate-slide-in-top">
+        <div id="currentTime">00:00:00</div>
+        <div style="color: var(--text-muted); font-size: 0.8rem;" id="currentDate">Monday, Jan 1</div>
+    </div>
+
+    <main class="hero-section">
+        <div class="main-card glass">
+            <div class="logo-wrapper">
+                <div class="logo-icon text-gradient">
+                    <i class="fas fa-microchip"></i>
+                </div>
+                <h1 class="hero-title">GeoFace<span class="text-gradient">Attend</span></h1>
+                <p class="hero-subtitle">The sovereign infrastructure for intelligent workforce synchronization and biometric verification.</p>
+            </div>
+
+            <div class="role-grid">
+                <a href="#" id="employeeBtn" class="role-option employee">
+                    <i class="fas fa-user-astronaut"></i>
+                    <span class="role-name">Employee Portal</span>
+                    <span class="role-desc">Access biometric check-in, track performance, and manage workspace telemetry.</span>
+                </a>
+
+                <a href="#" id="adminBtn" class="role-option admin">
+                    <i class="fas fa-shield-halved"></i>
+                    <span class="role-name">Central Control</span>
+                    <span class="role-desc">Oversee global nodal operations, analytics, and infrastructure security protocols.</span>
+                </a>
+            </div>
+
+            <div class="system-status">
+                <span><span class="status-indicator"></span> V3.0 Quantum Ready</span>
+                <span>|</span>
+                <span><i class="fas fa-satellite"></i> GPS Active</span>
+                <span>|</span>
+                <span><i class="fas fa-fingerprint"></i> Biometric Secure</span>
+            </div>
+        </div>
+    </main>
+
+    <div id="offlineStatus" class="offline-toast warning glass">
+        <i class="fas fa-wifi-slash"></i>
+        <span>Nodal Synchronization Interrupted (Offline Mode)</span>
+    </div>
+
+    <script>
+        const Utils = {
+            setStorage: (key, value) => localStorage.setItem(key, JSON.stringify(value)),
+            getStorage: (key) => JSON.parse(localStorage.getItem(key))
+        };
+
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('currentTime').textContent = now.toLocaleTimeString('en-US', {
+                hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+            });
+            document.getElementById('currentDate').textContent = now.toLocaleDateString('en-US', {
+                weekday: 'long', month: 'short', day: 'numeric'
+            });
+        }
+
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        window.addEventListener('online', () => document.getElementById('offlineStatus').classList.remove('visible'));
+        window.addEventListener('offline', () => document.getElementById('offlineStatus').classList.add('visible'));
+
+        document.getElementById('employeeBtn').addEventListener('click', (e) => {
+            e.preventDefault();
+            Utils.setStorage('selectedRole', 'employee');
+            window.location.href = 'auth.html';
+        });
+
+        document.getElementById('adminBtn').addEventListener('click', (e) => {
+            e.preventDefault();
+            Utils.setStorage('selectedRole', 'admin');
+            window.location.href = 'auth.html';
+        });
+
+        // Redirect if already logged in
+        const user = Utils.getStorage('currentUser');
+        if (user && Utils.getStorage('token')) {
+            window.location.href = user.role === 'admin' ? 'admin/dashboard.html' : 'employee/dashboard.html';
+        }
+    </script>
+</body>
+
+</html>

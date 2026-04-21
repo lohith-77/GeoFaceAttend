@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quantum Node | GeoFaceAttend v3.2</title>
+    
+    <link rel="stylesheet" href="../assets/css/theme.css">
+    <link rel="stylesheet" href="../assets/css/dashboard.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Map Engine -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <script src="https://unpkg.com/qr-scanner@1.4.2/qr-scanner.min.js"></script>
+    
+    <!-- Core Modules -->
+    <script src="../assets/js/config.js"></script>
+    <script src="../assets/js/utils.js"></script>
+    <script src="../assets/js/location-service.js"></script>
+    <script src="../assets/js/face-verification.js"></script>
+    <script src="../assets/js/offline-sync.js"></script>
+    <script src="../assets/js/notifications.js"></script>
+</head>
+
+<body>
+    <!-- Leading Feature: Particle Background -->
+    <canvas id="particleCanvas" style="position: fixed; top: 0; left: 0; z-index: -1; opacity: 0.3;"></canvas>
+
+    <div class="dashboard-layout">
+        <aside class="sidebar">
+            <div class="sidebar-brand text-gradient">
+                <i class="fas fa-atom"></i> GFA CORE
+            </div>
+            
+            <ul class="nav-links">
+                <li class="nav-item active" id="nav-overview"><a href="#" onclick="showSection('overview')"><i class="fas fa-th-large"></i> Overview</a></li>
+                <li class="nav-item" id="nav-attendance"><a href="#" onclick="showSection('attendance')"><i class="fas fa-fingerprint"></i> Biometric Ingress</a></li>
+                <li class="nav-item" id="nav-history"><a href="#" onclick="showSection('history')"><i class="fas fa-stream"></i> Time-Logs</a></li>
+                <li class="nav-item" id="nav-enroll"><a href="#" onclick="showSection('enroll')"><i class="fas fa-id-card"></i> Enrollment</a></li>
+                <li class="nav-item" id="nav-leave"><a href="#" onclick="showSection('leave')"><i class="fas fa-power-off"></i> Leave</a></li>
+            </ul>
+
+            <!-- Old Feature Refined: Offline Status -->
+            <div class="sync-status" id="syncStatusDiv">
+                <i class="fas fa-circle-check"></i> Cloud Synchronized
+            </div>
+
+            <div class="user-profile-bottom">
+                <div class="avatar" style="border: 2px solid var(--accent-primary);"></div>
+                <div class="user-details">
+                    <div style="font-weight: 600; font-size: 0.9rem;" id="userName">User Nexus</div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);" id="userDept">Active Operator</div>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-view">
+            <!-- Top Bar with Notifications (Old Feature Refined) -->
+            <header class="top-bar-view">
+                <div class="node-id">NODE :: <span class="text-gradient">GFA-2026-X</span></div>
+                <div class="quick-tools">
+                    <div class="notification-trigger" onclick="toggleNotifications()">
+                        <i class="fas fa-bell"></i>
+                        <span class="pulse-dot"></span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Section: Overview -->
+            <section id="overview-section" class="content-section">
+                <div class="welcome-banner">
+                    <h1 class="text-gradient">Welcome back, Operator.</h1>
+                    <p id="currentDateTime">-- : -- : --</p>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-header"><span>GEOLOCAL ACCURACY</span><i class="fas fa-crosshairs"></i></div>
+                        <div class="stat-value" id="locAccuracy">0m</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-header"><span>SHIFT ELAPSED</span><i class="fas fa-stopwatch"></i></div>
+                        <div class="stat-value" id="workHours">00:00</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-header"><span>NODAL STATUS</span><i class="fas fa-circle-check"></i></div>
+                        <div class="stat-value" style="color: var(--success);" id="nodeStatus">STABLE</div>
+                    </div>
+                </div>
+
+                <div class="action-grid">
+                    <div class="card glass" style="grid-column: span 2;">
+                        <div class="card-title">Live Geofence Synchronization</div>
+                        <div id="geofenceMap" style="height: 380px; border-radius: 12px; margin-top: 16px;"></div>
+                    </div>
+
+                    <!-- Attendance Controller (Old Feature logic: Check In vs Check Out) -->
+                    <div class="card glass" id="attendanceControlCard">
+                        <div class="card-title" id="controlTitle">Ingress Protocol</div>
+                        <div class="terminal-box" id="systemTerminal" style="height: 120px;">
+                            <div class="terminal-line info">> Awaiting command...</div>
+                        </div>
+                        <div style="display: flex; gap: 12px;">
+                            <button class="neon-btn" id="checkInBtn" onclick="showSection('attendance')">Initialize Check-In</button>
+                            <button class="neon-btn" id="checkOutBtn" style="display: none; background: var(--danger);" onclick="showSection('attendance')">Initialize Check-Out</button>
+                        </div>
+                    </div>
+
+                    <div class="card glass">
+                        <div class="card-title">Activity Metrics</div>
+                        <canvas id="metricsChart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section: Attendance (with Leading Feature: Liveness) -->
+            <section id="attendance-section" class="content-section" style="display: none;">
+                <div class="card glass" style="max-width: 800px; margin: 0 auto; overflow: hidden;">
+                    <div class="biometric-portal">
+                        <video id="attendanceVideo" autoplay playsinline></video>
+                        <div class="face-frame"></div>
+                        <!-- Leading Feature: Liveness Overlay -->
+                        <div class="liveness-check" id="livenessAlert">
+                            <span>PLEASE BLINK NOW</span>
+                        </div>
+                    </div>
+                    <div class="terminal-box" style="padding: 20px;" id="verificationTerminal"></div>
+                    <div style="display: flex; gap: 16px; padding: 20px;">
+                        <button class="neon-btn" id="verifyIdentityBtn" onclick="runBiometricSequence()">Execute Ingress</button>
+                        <button class="neon-btn" style="background: var(--surface-2); box-shadow: none;" onclick="showSection('overview')">Abort</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section: Enrollment (Leading Feature) -->
+            <section id="enroll-section" class="content-section" style="display: none;">
+                <div class="card glass" style="max-width: 600px; margin: 0 auto;">
+                    <div class="card-title">Biometric Enrollment</div>
+                    <p style="color: var(--text-muted); margin-bottom: 24px;">Register a new facial signature for this operator node.</p>
+                    <div class="camera-preview" style="height: 300px; background: var(--surface-2);"></div>
+                    <button class="neon-btn" style="margin-top: 24px;">Capture Baseline</button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Notification Overlay (Old Feature Refined) -->
+    <div id="notificationPanel" class="notification-panel">
+        <div class="panel-header">System Broadcasts</div>
+        <div class="panel-list" id="broadcastList"></div>
+    </div>
+
+    <script>
+        // Internal State
+        let attendanceState = localStorage.getItem('attendanceState') || 'OUT'; // IN or OUT
+        let user = JSON.parse(localStorage.getItem('currentUser')) || { name: 'Operator', id: '101' };
+        let map = null;
+
+        document.getElementById('userName').textContent = user.name;
+
+        function showSection(id) {
+            document.querySelectorAll('.content-section').forEach(s => s.style.display = 'none');
+            document.getElementById(id + '-section').style.display = 'block';
+            if (id === 'overview' && map) setTimeout(() => map.invalidateSize(), 100);
+        }
+
+        function updateAttendanceUI() {
+            if (attendanceState === 'IN') {
+                document.getElementById('checkInBtn').style.display = 'none';
+                document.getElementById('checkOutBtn').style.display = 'block';
+                document.getElementById('controlTitle').textContent = 'Egress Protocol';
+                document.getElementById('nodeStatus').textContent = 'CONNECTED';
+                document.getElementById('nodeStatus').style.color = '#10b981';
+            } else {
+                document.getElementById('checkInBtn').style.display = 'block';
+                document.getElementById('checkOutBtn').style.display = 'none';
+                document.getElementById('controlTitle').textContent = 'Ingress Protocol';
+                document.getElementById('nodeStatus').textContent = 'STAND-BY';
+                document.getElementById('nodeStatus').style.color = 'var(--accent-primary)';
+            }
+        }
+
+        async function runBiometricSequence() {
+            const term = 'verificationTerminal';
+            const btn = document.getElementById('verifyIdentityBtn');
+            btn.disabled = true;
+
+            logToTerminal(term, '> Initiating location check...', 'info');
+            const loc = await locationService.verifyLocation();
+            
+            if (!loc.success) {
+                logToTerminal(term, `> Geofence mismatch: ${loc.message}`, 'error');
+                btn.disabled = false;
+                return;
+            }
+
+            logToTerminal(term, '> Geofence verified. Starting facial analysis...', 'success');
+            const video = document.getElementById('attendanceVideo');
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            video.srcObject = stream;
+
+            // Simulated Leading Feature: Liveness
+            document.getElementById('livenessAlert').style.display = 'flex';
+            setTimeout(async () => {
+                document.getElementById('livenessAlert').style.display = 'none';
+                logToTerminal(term, '> Liveness detected. Verifying signature...', 'success');
+                
+                const face = await faceVerification.verifyFace(true);
+                if (face.success) {
+                    logToTerminal(term, '> IDENTITY CONFIRMED. Syncing with central node...', 'success');
+                    attendanceState = (attendanceState === 'IN') ? 'OUT' : 'IN';
+                    localStorage.setItem('attendanceState', attendanceState);
+                    setTimeout(() => {
+                        updateAttendanceUI();
+                        showSection('overview');
+                        btn.disabled = false;
+                    }, 1500);
+                } else {
+                    logToTerminal(term, `> Verification failed: ${face.message}`, 'error');
+                    btn.disabled = false;
+                }
+            }, 2000);
+        }
+
+        function logToTerminal(id, message, type) {
+            const div = document.createElement('div');
+            div.className = `terminal-line ${type}`;
+            div.textContent = message;
+            document.getElementById(id).appendChild(div);
+        }
+
+        // Particle background (Leading Feature)
+        function initParticles() {
+            const canvas = document.getElementById('particleCanvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            // ... (Simple particle logic here)
+        }
+
+        function initMap() {
+            const office = locationService.getOfficeLocations()[0];
+            map = L.map('geofenceMap', { zoomControl: false }).setView([office.lat, office.lng], 16);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
+            L.circle([office.lat, office.lng], { color: '#6366f1', radius: office.radius, fillOpacity: 0.1 }).addTo(map);
+        }
+
+        function toggleNotifications() {
+            const p = document.getElementById('notificationPanel');
+            p.style.display = p.style.display === 'block' ? 'none' : 'block';
+        }
+
+        // Initial calls
+        updateAttendanceUI();
+        initMap();
+        initParticles();
+        setInterval(() => {
+            document.getElementById('currentDateTime').textContent = new Date().toLocaleTimeString();
+        }, 1000);
+
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authentication | GeoFaceAttend</title>
+    
+    <link rel="stylesheet" href="assets/css/theme.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: var(--surface-0);
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        .bg-mesh {
+            position: absolute;
+            width: 150%;
+            height: 150%;
+            background: linear-gradient(45deg, #0f172a 0%, #1e293b 50%, #020617 100%);
+            z-index: 1;
+        }
+
+        .auth-container {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            max-width: 480px;
+            padding: 24px;
+        }
+
+        .auth-card {
+            padding: 48px;
+            border-radius: var(--radius-xl);
+            box-shadow: 0 40px 100px rgba(0,0,0,0.5);
+            animation: scale-up 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .auth-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .back-link {
+            position: absolute;
+            top: 40px;
+            left: 0;
+            color: var(--text-sub);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            transition: color 0.3s;
+        }
+
+        .back-link:hover { color: var(--accent-primary); }
+
+        .auth-title {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .auth-subtitle {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        .role-indicator {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 24px;
+            background: rgba(99, 102, 241, 0.1);
+            color: var(--accent-primary);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+            position: relative;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: var(--text-sub);
+            transition: color 0.3s;
+        }
+
+        .input-wrapper {
+            position: relative;
+        }
+
+        .input-wrapper i {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            transition: color 0.3s;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 14px 16px 14px 48px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-md);
+            color: white;
+            font-size: 0.95rem;
+            transition: all 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+        }
+
+        .form-group input:focus + i, .form-group input:not(:placeholder-shown) + i {
+            color: var(--accent-primary);
+        }
+
+        .auth-btn { width: 100%; margin-top: 12px; }
+
+        .auth-footer {
+            margin-top: 32px;
+            text-align: center;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .auth-footer a {
+            color: var(--accent-primary);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .auth-form { display: none; }
+        .auth-form.active { display: block; animation: fadeIn 0.4s ease; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Modal Overlay */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(2, 6, 23, 0.8);
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .otp-modal {
+            max-width: 400px;
+            width: 90%;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .otp-inputs {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin: 32px 0;
+        }
+
+        .otp-field {
+            width: 48px;
+            height: 56px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-sm);
+            color: white;
+            font-size: 1.5rem;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .otp-field:focus {
+            border-color: var(--accent-primary);
+            outline: none;
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="bg-mesh"></div>
+
+    <div class="auth-container">
+        <a href="index.html" class="back-link">
+            <i class="fas fa-chevron-left"></i> Core Systems
+        </a>
+
+        <div class="auth-card glass">
+            <div class="auth-header">
+                <div class="role-indicator" id="roleTag">Employee Portal</div>
+                <h1 class="auth-title" id="authTitle">Welcome Back</h1>
+                <p class="auth-subtitle" id="authSubtitle">Identify yourself to access the network.</p>
+            </div>
+
+            <!-- Login Form -->
+            <form id="loginForm" class="auth-form active">
+                <div class="form-group">
+                    <label>Network Identity (EMP ID)</label>
+                    <div class="input-wrapper">
+                        <input type="text" id="loginEmpId" placeholder="EMP-000" required>
+                        <i class="fas fa-id-badge"></i>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Access Key</label>
+                    <div class="input-wrapper">
+                        <input type="password" id="loginPassword" placeholder="••••••••" required>
+                        <i class="fas fa-key"></i>
+                    </div>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; margin-bottom: 24px; font-size: 0.85rem;">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text-sub);">
+                        <input type="checkbox" id="rememberMe"> Persistence Mode
+                    </label>
+                    <a href="#" style="color: var(--accent-primary); text-decoration: none;">Reset Key</a>
+                </div>
+
+                <button type="submit" class="neon-btn auth-btn">
+                    <span>Initialize Session</span>
+                    <i class="fas fa-bolt"></i>
+                </button>
+
+                <div class="auth-footer">
+                    New operator? <a href="#" id="toRegister">Request Access</a>
+                </div>
+            </form>
+
+            <!-- Register Form -->
+            <form id="registerForm" class="auth-form">
+                <div class="form-group">
+                    <label>Full Designation Name</label>
+                    <div class="input-wrapper">
+                        <input type="text" id="regName" placeholder="John Doe" required>
+                        <i class="fas fa-user-circle"></i>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Secure Email Address</label>
+                    <div class="input-wrapper">
+                        <input type="email" id="regEmail" placeholder="operator@network.com" required>
+                        <i class="fas fa-envelope"></i>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>New EMP ID</label>
+                    <div class="input-wrapper">
+                        <input type="text" id="regEmpId" placeholder="EMP-XXX" required>
+                        <i class="fas fa-id-card"></i>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Set Access Key</label>
+                    <div class="input-wrapper">
+                        <input type="password" id="regPassword" placeholder="Min. 8 characters" required>
+                        <i class="fas fa-lock"></i>
+                    </div>
+                </div>
+
+                <button type="submit" class="neon-btn auth-btn">
+                    <span>Create Identity</span>
+                    <i class="fas fa-plus-circle"></i>
+                </button>
+
+                <div class="auth-footer">
+                    Already registered? <a href="#" id="toLogin">Enter Terminal</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- OTP Modal -->
+    <div id="otpModal" class="modal-overlay">
+        <div class="otp-modal glass auth-card">
+            <h2 class="auth-title">Verify Signal</h2>
+            <p class="auth-subtitle">A verification packet was sent to your email.</p>
+            
+            <div class="otp-inputs">
+                <input type="text" maxlength="1" class="otp-field">
+                <input type="text" maxlength="1" class="otp-field">
+                <input type="text" maxlength="1" class="otp-field">
+                <input type="text" maxlength="1" class="otp-field">
+                <input type="text" maxlength="1" class="otp-field">
+                <input type="text" maxlength="1" class="otp-field">
+            </div>
+
+            <button class="neon-btn" style="width: 100%;" id="verifyBtn">Synchronize</button>
+            <p style="margin-top: 24px; font-size: 0.85rem; color: var(--text-muted);">
+                Didn't receive signal? <a href="#" style="color: var(--accent-primary); text-decoration: none;">Resend Packet</a>
+            </p>
+        </div>
+    </div>
+
+    <!-- Scripts are included as expected by existing logic -->
+    <script src="assets/js/config.js"></script>
+    <script src="assets/js/utils.js"></script>
+    <script src="assets/js/email-service.js"></script>
+    <script src="assets/js/auth.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const role = localStorage.getItem('selectedRole') || 'employee';
+            const roleTag = document.getElementById('roleTag');
+            
+            roleTag.textContent = role === 'admin' ? 'Central Control' : 'Employee Portal';
+            roleTag.style.borderColor = role === 'admin' ? 'var(--accent-primary)' : 'var(--accent-secondary)';
+            roleTag.style.color = role === 'admin' ? 'var(--accent-primary)' : 'var(--accent-secondary)';
+
+            const toRegister = document.getElementById('toRegister');
+            const toLogin = document.getElementById('toLogin');
+            const loginForm = document.getElementById('loginForm');
+            const registerForm = document.getElementById('registerForm');
+            const authTitle = document.getElementById('authTitle');
+
+            toRegister.addEventListener('click', (e) => {
+                e.preventDefault();
+                loginForm.classList.remove('active');
+                registerForm.classList.add('active');
+                authTitle.textContent = "Identity Request";
+            });
+
+            toLogin.addEventListener('click', (e) => {
+                e.preventDefault();
+                registerForm.classList.remove('active');
+                loginForm.classList.add('active');
+                authTitle.textContent = "Welcome Back";
+            });
+
+            // Handle OTP input auto-focus
+            const otpFields = document.querySelectorAll('.otp-field');
+            otpFields.forEach((field, idx) => {
+                field.addEventListener('input', (e) => {
+                    if (e.target.value && idx < otpFields.length - 1) {
+                        otpFields[idx + 1].focus();
+                    }
+                });
+                field.addEventListener('keydown', (e) => {
+                    if (e.key === 'Backspace' && !e.target.value && idx > 0) {
+                        otpFields[idx - 1].focus();
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+
+</html>

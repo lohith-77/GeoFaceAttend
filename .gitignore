@@ -1,0 +1,32 @@
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.env
+.env.production
+.env.local
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Android / Build
+**/build/
+*.apk
+*.aar
+*.jks
+*.keystore
+bin/
+gen/
+
+# Database / Backups
+backups/
+*.sql
+*.sqlite
+
+# OS
+.DS_Store
+Thumbs.db

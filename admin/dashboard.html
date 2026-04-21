@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sovereign Admin | GeoFaceAttend v3.2</title>
+    
+    <link rel="stylesheet" href="../assets/css/theme.css">
+    <link rel="stylesheet" href="../assets/css/dashboard.css">
+    <link rel="stylesheet" href="../assets/css/admin-dashboard.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Leaflet Map Engine -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="../assets/js/utils.js"></script>
+    <script src="../assets/js/config.js"></script>
+</head>
+
+<body>
+    <div class="dashboard-layout">
+        <aside class="sidebar">
+            <div class="sidebar-brand text-gradient">
+                <i class="fas fa-shield-virus"></i> COMMAND CORE
+            </div>
+            
+            <ul class="nav-links">
+                <li class="nav-item active" id="nav-nexus"><a href="#" onclick="showSection('nexus')"><i class="fas fa-satellite"></i> Nexus</a></li>
+                <li class="nav-item" id="nav-operators"><a href="#" onclick="showSection('operators')"><i class="fas fa-user-astronaut"></i> Operators</a></li>
+                <li class="nav-item" id="nav-protocols"><a href="#" onclick="showSection('protocols')"><i class="fas fa-tasks"></i> Protocols</a></li>
+                <li class="nav-item" id="nav-reports"><a href="#" onclick="showSection('reports')"><i class="fas fa-file-invoice-dollar"></i> Manifests</a></li>
+            </ul>
+
+            <div class="user-profile-bottom">
+                <div class="avatar" style="box-shadow: 0 0 10px var(--accent-secondary);"></div>
+                <div class="user-details">
+                    <div style="font-weight: 600; font-size: 0.9rem;">Arch-Admin</div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">Clearance: Level 5</div>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-view">
+            <!-- Leading Feature: Command Search -->
+            <div class="command-palette-trigger" onclick="alert('Command Palette (Ctrl+K) Activated.')">
+                <i class="fas fa-search"></i> Search operations... <span class="kb-key">Ctrl K</span>
+            </div>
+
+            <!-- Section: Nexus (Leading Maps & Performance) -->
+            <section id="nexus-section" class="content-section">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-header"><span>ACTIVE NODES</span></div>
+                        <div class="stat-value">1,540</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-header"><span>DAILY INGRESS</span></div>
+                        <div class="stat-value">92.8%</div>
+                    </div>
+                    <!-- Leading Feature: System Heartbeat -->
+                    <div class="stat-card">
+                        <div class="stat-header"><span>HEARTBEAT</span><span class="live-tag">LIVE</span></div>
+                        <canvas id="heartbeatChart" style="height: 40px;"></canvas>
+                    </div>
+                </div>
+
+                <div class="action-grid" style="grid-template-columns: 2fr 1fr; margin-top: 24px;">
+                    <div class="card glass">
+                        <div class="card-title">Tactical Nodal Deployment Map</div>
+                        <div id="adminGlobalMap" style="height: 480px; border-radius: 12px; margin-top: 16px;"></div>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 24px;">
+                        <!-- Old Feature Refined: Broadcast Center -->
+                        <div class="card glass">
+                            <div class="card-title">Global Broadcast</div>
+                            <textarea class="search-input" style="width: 100%; height: 80px; margin-top: 12px;" placeholder="Enter message to all operator nodes..."></textarea>
+                            <button class="neon-btn" style="width: 100%; margin-top: 12px;">Transmit</button>
+                        </div>
+                        <div class="card glass">
+                            <div class="card-title">Pending Approvals</div>
+                            <div class="protocol-list">
+                                <div class="protocol-item">
+                                    <span>Nodal Deactivation (EMP-102)</span>
+                                    <button class="fab-btn-sm"><i class="fas fa-check"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section: Operators (Detailed List - Old Feature) -->
+            <section id="operators-section" class="content-section" style="display: none;">
+                <div class="toolbar">
+                    <div style="position: relative; flex: 1;">
+                        <input type="text" class="search-input" placeholder="Filter by ID, Name or Department..." style="width: 100%; padding-left: 40px;">
+                        <i class="fas fa-filter" style="position: absolute; left: 15px; top: 12px; color: var(--text-muted);"></i>
+                    </div>
+                    <button class="neon-btn" onclick="alert('Ready for bulk import.')"><i class="fas fa-file-import"></i> Bulk Import</button>
+                    <button class="fab-btn"><i class="fas fa-plus"></i></button>
+                </div>
+                <div class="data-table-wrapper card glass">
+                    <table class="gfa-table">
+                        <thead>
+                            <tr>
+                                <th>OPERATOR SIGNATURE</th>
+                                <th>DEPT NODE</th>
+                                <th>LAST GEOLOC</th>
+                                <th>SYNC STATUS</th>
+                                <th>MGMT</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Marcus Aurelius</strong><br><small>NODE-001</small></td>
+                                <td>Command</td>
+                                <td>Rome, IT</td>
+                                <td><span class="status-chip online">SYNCED</span></td>
+                                <td><i class="fas fa-ellipsis-h"></i></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        let adminMap = null;
+
+        function showSection(id) {
+            document.querySelectorAll('.content-section').forEach(s => s.style.display = 'none');
+            document.getElementById(id + '-section').style.display = 'block';
+            if (id === 'nexus') setTimeout(() => adminMap.invalidateSize(), 100);
+        }
+
+        function initMap() {
+            adminMap = L.map('adminGlobalMap', { zoomControl: false }).setView([22.859, 75.954], 12);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(adminMap);
+            locationService.getOfficeLocations().forEach(loc => {
+                L.circle([loc.lat, loc.lng], { color: '#6366f1', radius: loc.radius }).addTo(adminMap)
+                    .bindPopup(`<b>${loc.name}</b> Node`);
+            });
+        }
+
+        initMap();
+
+        // Heartbeat Chart (Leading Feature)
+        const heartCtx = document.getElementById('heartbeatChart').getContext('2d');
+        new Chart(heartCtx, {
+            type: 'line',
+            data: {
+                labels: Array(20).fill(''),
+                datasets: [{
+                    data: Array(20).fill(0).map(() => Math.random() * 10 + 20),
+                    borderColor: '#6366f1',
+                    borderWidth: 2,
+                    tension: 0.5,
+                    pointRadius: 0
+                }]
+            },
+            options: {
+                plugins: { legend: { display: false } },
+                scales: { x: { display: false }, y: { display: false } }
+            }
+        });
+    </script>
+</body>
+
+</html>

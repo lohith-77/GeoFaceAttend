@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quantum Analytics | GeoFaceAttend</title>
+    
+    <link rel="stylesheet" href="../assets/css/theme.css">
+    <link rel="stylesheet" href="../assets/css/dashboard.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+
+<body>
+    <div class="dashboard-layout">
+        <aside class="sidebar">
+            <div class="sidebar-brand text-gradient">
+                <i class="fas fa-microchip"></i> GFA CORE
+            </div>
+            
+            <ul class="nav-links">
+                <li class="nav-item"><a href="dashboard.html"><i class="fas fa-th-large"></i> Overview</a></li>
+                <li class="nav-item active"><a href="#"><i class="fas fa-chart-line"></i> Analytics</a></li>
+                <li class="nav-item"><a href="dashboard.html"><i class="fas fa-user-shield"></i> Operators</a></li>
+                <li class="nav-item"><a href="dashboard.html"><i class="fas fa-calendar-check"></i> Approvals</a></li>
+            </ul>
+
+            <div class="user-profile-bottom">
+                <div class="avatar" style="background: var(--accent-vibrant);"></div>
+                <div class="user-details">
+                    <div style="font-weight: 600; font-size: 0.9rem;">Admin Prime</div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">Root Access</div>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-view">
+            <header class="view-header">
+                <div class="welcome-info">
+                    <h1>Deep <span class="text-gradient">Intelligence</span></h1>
+                    <p>Correlating global nodal synchronization telemetry.</p>
+                </div>
+                <div style="display: flex; gap: 12px;">
+                    <select class="search-input" style="width: auto;">
+                        <option>Last 30 Cycles</option>
+                        <option>Last 90 Cycles</option>
+                        <option>Global History</option>
+                    </select>
+                    <button class="neon-btn"><i class="fas fa-sync"></i> Refresh Matrix</button>
+                </div>
+            </header>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-header"><span>AVG SYNC RATE</span><i class="fas fa-percentage"></i></div>
+                    <div class="stat-value">92.4%</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-header"><span>PUNCTUALITY INDEX</span><i class="fas fa-clock"></i></div>
+                    <div class="stat-value">0.88</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-header"><span>NODAL UPTIME</span><i class="fas fa-server"></i></div>
+                    <div class="stat-value" style="color: var(--success);">99.9%</div>
+                </div>
+            </div>
+
+            <div class="action-grid" style="margin-bottom: 40px;">
+                <div class="card glass">
+                    <div class="card-title"><i class="fas fa-wave-square"></i> Nodal Synchronization Trend</div>
+                    <canvas id="mainChart" style="max-height: 350px;"></canvas>
+                </div>
+                <div class="card glass">
+                    <div class="card-title"><i class="fas fa-chart-pie"></i> Sector Distribution</div>
+                    <canvas id="sectorChart" style="max-height: 350px;"></canvas>
+                </div>
+            </div>
+
+            <div class="card glass">
+                <div class="card-title"><i class="fas fa-lightbulb"></i> Neural Insights</div>
+                <div class="terminal-box">
+                    <div class="terminal-line info">> Analyzing pattern signatures...</div>
+                    <div class="terminal-line success">> APAC Node shows 15% efficiency increase this cycle.</div>
+                    <div class="terminal-line wait">> Potential synchronization lag detected in LATAM sector.</div>
+                    <div class="terminal-line info">> Recommendation: Deploy mobile synchronization nodes in Sector 7.</div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Main Trend Chart
+        const mainCtx = document.getElementById('mainChart').getContext('2d');
+        new Chart(mainCtx, {
+            type: 'line',
+            data: {
+                labels: ['C-1', 'C-2', 'C-3', 'C-4', 'C-5', 'C-6', 'C-7'],
+                datasets: [{
+                    label: 'Sync Rate',
+                    data: [82, 85, 91, 88, 94, 92, 96],
+                    borderColor: '#6366f1',
+                    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b' } },
+                    x: { grid: { display : false }, ticks: { color: '#64748b' } }
+                }
+            }
+        });
+
+        // Sector Distribution Chart
+        const sectorCtx = document.getElementById('sectorChart').getContext('2d');
+        new Chart(sectorCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Engineering', 'Tactical', 'Logistics', 'Command'],
+                datasets: [{
+                    data: [45, 25, 20, 10],
+                    backgroundColor: ['#6366f1', '#06b6d4', '#ec4899', '#f59e0b'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                plugins: { legend: { position: 'bottom', labels: { color: '#f8fafc' } } },
+                cutout: '70%'
+            }
+        });
+    </script>
+</body>
+
+</html>

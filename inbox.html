@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neural Inbox | GeoFaceAttend</title>
+    
+    <link rel="stylesheet" href="assets/css/theme.css">
+    <link rel="stylesheet" href="assets/css/dashboard.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body style="display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; background: var(--bg-main);">
+    <div class="card glass" style="max-width: 900px; width: 100%; padding: 40px;">
+        <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; border-bottom: 1px solid var(--glass-border); padding-bottom: 24px;">
+            <div>
+                <h1 style="font-size: 2rem;"><i class="fas fa-satellite text-gradient"></i> Neural <span class="text-gradient">Inbox</span></h1>
+                <p style="color: var(--text-muted); font-size: 0.9rem;">Decrypting incoming nodal transmissions...</p>
+            </div>
+            <div style="display: flex; gap: 12px;">
+                <button class="neon-btn" onclick="javascript:history.back()" style="background: var(--surface-2); box-shadow: none;"><i class="fas fa-arrow-left"></i></button>
+                <button class="neon-btn" onclick="location.reload()"><i class="fas fa-sync"></i></button>
+            </div>
+        </header>
+
+        <div id="emailList" style="display: flex; flex-direction: column; gap: 16px; max-height: 600px; overflow-y: auto; padding-right: 12px;">
+            <!-- Simulated Messages -->
+            <div class="card glass" style="border-left: 4px solid var(--accent-primary); cursor: pointer;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                    <strong style="color: var(--accent-primary); font-size: 0.8rem; letter-spacing: 1px;">SYSTEM ALERT</strong>
+                    <span style="font-size: 0.75rem; color: var(--text-muted);">2m ago</span>
+                </div>
+                <h3 style="margin-bottom: 12px;">Nodal Synchronization Success</h3>
+                <p style="color: var(--text-muted); font-size: 0.9rem; line-height: 1.6;">Welcome operator. Your facial baseline has been synchronized with the core node. Access is now granted.</p>
+            </div>
+
+            <div class="card glass" style="border-left: 4px solid var(--warning); cursor: pointer;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                    <strong style="color: var(--warning); font-size: 0.8rem; letter-spacing: 1px;">SECURITY UPDATE</strong>
+                    <span style="font-size: 0.75rem; color: var(--text-muted);">1h ago</span>
+                </div>
+                <h3 style="margin-bottom: 12px;">Mandatory Nodal Relocation</h3>
+                <p style="color: var(--text-muted); font-size: 0.9rem; line-height: 1.6;">Please update your GPS geofence parameters. The main office node has been moved to Sector 9.</p>
+            </div>
+        </div>
+
+        <div id="emptyInbox" style="display: none; text-align: center; padding: 60px 0;">
+            <i class="fas fa-inbox" style="font-size: 4rem; color: var(--surface-2); margin-bottom: 24px;"></i>
+            <h3>No Active Transmissions</h3>
+            <p style="color: var(--text-muted); margin-top: 8px;">The neural link is currently quiet.</p>
+        </div>
+    </div>
+
+    <script>
+        // Use existing localStorage logic if available
+        const emails = JSON.parse(localStorage.getItem('emails') || '[]');
+        if (emails.length > 0) {
+            const list = document.getElementById('emailList');
+            // Logic to render real emails would go here
+        }
+    </script>
+</body>
+
+</html>
