@@ -42,10 +42,10 @@
             
             <ul class="nav-links">
                 <li class="nav-item active" id="nav-overview"><a href="#" onclick="showSection('overview')"><i class="fas fa-th-large"></i> Overview</a></li>
-                <li class="nav-item" id="nav-attendance"><a href="#" onclick="showSection('attendance')"><i class="fas fa-fingerprint"></i> Biometric Ingress</a></li>
+                <li class="nav-item" id="nav-attendance"><a href="#" onclick="showSection('attendance')"><i class="fas fa-satellite-dish"></i> Attendance Hub</a></li>
                 <li class="nav-item" id="nav-history"><a href="#" onclick="showSection('history')"><i class="fas fa-stream"></i> Time-Logs</a></li>
-                <li class="nav-item" id="nav-enroll"><a href="#" onclick="showSection('enroll')"><i class="fas fa-id-card"></i> Enrollment</a></li>
-                <li class="nav-item" id="nav-leave"><a href="#" onclick="showSection('leave')"><i class="fas fa-power-off"></i> Leave</a></li>
+                <li class="nav-item" id="nav-leave"><a href="#" onclick="showSection('leave')"><i class="fas fa-calendar-minus"></i> Leave</a></li>
+                <li class="nav-item" id="nav-outstation"><a href="#" onclick="showSection('outstation')"><i class="fas fa-qrcode"></i> Outstation QR</a></li>
             </ul>
 
             <!-- Old Feature Refined: Offline Status -->
@@ -121,21 +121,49 @@
                 </div>
             </section>
 
-            <!-- Section: Attendance (with Leading Feature: Liveness) -->
+            <!-- Section: Attendance Hub (Legacy Geofence & Face ID) -->
             <section id="attendance-section" class="content-section" style="display: none;">
-                <div class="card glass" style="max-width: 800px; margin: 0 auto; overflow: hidden;">
-                    <div class="biometric-portal">
+                <div class="card glass" style="max-width: 800px; margin: 0 auto;">
+                    <div class="card-title">Nodal Ingress (Within 1km)</div>
+                    <div style="padding: 20px; background: rgba(99, 102, 241, 0.05); border-radius: 12px; margin-bottom: 24px; display: flex; gap: 16px; align-items: center;">
+                        <i class="fas fa-map-marker-alt fa-2x" style="color: var(--accent-primary);"></i>
+                        <div>
+                            <div style="font-weight: 600;">Main Office</div>
+                            <div style="font-size: 0.8rem; color: var(--text-muted);">123 Business Avenue, Downtown</div>
+                        </div>
+                        <button class="neon-btn" style="margin-left: auto;" onclick="runBiometricSequence()">Verify Location</button>
+                    </div>
+
+                    <div class="biometric-portal" id="facePortal" style="display: none;">
                         <video id="attendanceVideo" autoplay playsinline></video>
                         <div class="face-frame"></div>
-                        <!-- Leading Feature: Liveness Overlay -->
-                        <div class="liveness-check" id="livenessAlert">
-                            <span>PLEASE BLINK NOW</span>
-                        </div>
+                        <div class="liveness-check" id="livenessAlert"><span>PLEASE BLINK NOW</span></div>
                     </div>
-                    <div class="terminal-box" style="padding: 20px;" id="verificationTerminal"></div>
-                    <div style="display: flex; gap: 16px; padding: 20px;">
-                        <button class="neon-btn" id="verifyIdentityBtn" onclick="runBiometricSequence()">Execute Ingress</button>
-                        <button class="neon-btn" style="background: var(--surface-2); box-shadow: none;" onclick="showSection('overview')">Abort</button>
+                    <div class="terminal-box" id="verificationTerminal"></div>
+                </div>
+            </section>
+
+            <!-- Section: Outstation QR (Restored from Image 3) -->
+            <section id="outstation-section" class="content-section" style="display: none;">
+                <div class="card glass" style="max-width: 800px; margin: 0 auto;">
+                    <div class="card-title">Outstation Check-in (Remote)</div>
+                    <div class="qr-scanner-card" style="position: relative; height: 350px; background: #000; border-radius: 12px; margin-top: 20px; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                        <video id="qrVideo" style="width: 100%; height: 100%; object-fit: cover;"></video>
+                        <div class="qr-overlay" style="position: absolute; width: 250px; height: 250px; border: 2px solid var(--accent-primary); border-radius: 20px; box-shadow: 0 0 0 1000px rgba(0,0,0,0.5);"></div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 16px; padding-top: 24px;">
+                        <button class="neon-btn" onclick="startScanner()"><i class="fas fa-camera"></i> Start Scanner</button>
+                        <button class="neon-btn" style="background: var(--surface-2);" onclick="stopScanner()">Stop</button>
+                    </div>
+
+                    <div class="instructions" style="margin-top: 32px; padding: 20px; border-left: 4px solid var(--accent-primary); background: rgba(255,255,255,0.02);">
+                        <h4 style="margin-bottom: 12px;">Instructions:</h4>
+                        <ol style="padding-left: 20px; color: var(--text-muted); font-size: 0.9rem;">
+                            <li>Get the encrypted QR code from your manager or the client site terminal.</li>
+                            <li>Ensure you are in a well-lit environment.</li>
+                            <li>Point the camera at the QR code until the system confirms synchronization.</li>
+                        </ol>
                     </div>
                 </div>
             </section>

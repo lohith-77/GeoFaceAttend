@@ -32,8 +32,9 @@
             <ul class="nav-links">
                 <li class="nav-item active" id="nav-nexus"><a href="#" onclick="showSection('nexus')"><i class="fas fa-satellite"></i> Nexus</a></li>
                 <li class="nav-item" id="nav-operators"><a href="#" onclick="showSection('operators')"><i class="fas fa-user-astronaut"></i> Operators</a></li>
-                <li class="nav-item" id="nav-protocols"><a href="#" onclick="showSection('protocols')"><i class="fas fa-tasks"></i> Protocols</a></li>
-                <li class="nav-item" id="nav-reports"><a href="#" onclick="showSection('reports')"><i class="fas fa-file-invoice-dollar"></i> Manifests</a></li>
+                <li class="nav-item" id="nav-protocols"><a href="#" onclick="showSection('protocols')"><i class="fas fa-tasks"></i> Leave Requests</a></li>
+                <li class="nav-item" id="nav-reports"><a href="#" onclick="showSection('reports')"><i class="fas fa-file-invoice-dollar"></i> Reports</a></li>
+                <li class="nav-item" id="nav-outstation-qr"><a href="#" onclick="showSection('outstation-qr')"><i class="fas fa-qrcode"></i> Outstation QR</a></li>
             </ul>
 
             <div class="user-profile-bottom">
@@ -46,7 +47,7 @@
         </aside>
 
         <main class="main-view">
-            <!-- Leading Feature: Command Search -->
+            <!-- Command Search -->
             <div class="command-palette-trigger" onclick="alert('Command Palette (Ctrl+K) Activated.')">
                 <i class="fas fa-search"></i> Search operations... <span class="kb-key">Ctrl K</span>
             </div>
@@ -55,17 +56,45 @@
             <section id="nexus-section" class="content-section">
                 <div class="stats-grid">
                     <div class="stat-card">
-                        <div class="stat-header"><span>ACTIVE NODES</span></div>
-                        <div class="stat-value">1,540</div>
+                        <div class="stat-header"><span>TOTAL EMPLOYEES</span><i class="fas fa-users"></i></div>
+                        <div class="stat-value">150</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-header"><span>DAILY INGRESS</span></div>
-                        <div class="stat-value">92.8%</div>
+                        <div class="stat-header"><span>PRESENT TODAY</span><i class="fas fa-user-check"></i></div>
+                        <div class="stat-value" style="color: var(--success);">142</div>
                     </div>
-                    <!-- Leading Feature: System Heartbeat -->
                     <div class="stat-card">
-                        <div class="stat-header"><span>HEARTBEAT</span><span class="live-tag">LIVE</span></div>
-                        <canvas id="heartbeatChart" style="height: 40px;"></canvas>
+                        <div class="stat-header"><span>LATE ARRIVALS</span><i class="fas fa-clock"></i></div>
+                        <div class="stat-value" style="color: var(--warning);">5</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-header"><span>ON LEAVE</span><i class="fas fa-plane-departure"></i></div>
+                        <div class="stat-value" style="color: var(--accent-primary);">3</div>
+                    </div>
+                </div>
+
+                <div class="action-grid" style="grid-template-columns: 1fr 1fr; margin-top: 24px;">
+                    <div class="card glass">
+                        <div class="card-title">Department Distribution</div>
+                        <canvas id="deptChart" style="max-height: 300px;"></canvas>
+                    </div>
+                    <div class="card glass">
+                        <div class="card-title">Weekly Attendance Trend</div>
+                        <canvas id="weeklyTrendChart" style="max-height: 300px;"></canvas>
+                    </div>
+                </div>
+
+                <div class="card glass" style="margin-top: 24px;">
+                    <div class="card-title">Recent System Activity Feed</div>
+                    <div class="activity-feed" style="margin-top: 16px;">
+                        <div class="feed-item" style="display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--glass-border);">
+                            <div class="feed-icon" style="color: var(--success);"><i class="fas fa-check-circle"></i></div>
+                            <div class="feed-details"><strong>John Doe</strong> checked in at 9:05 AM</div>
+                        </div>
+                        <div class="feed-item" style="display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--glass-border);">
+                            <div class="feed-icon" style="color: var(--warning);"><i class="fas fa-clock"></i></div>
+                            <div class="feed-details"><strong>Jane Smith</strong> marked late at 9:20 AM</div>
+                        </div>
                     </div>
                 </div>
 
@@ -75,7 +104,6 @@
                         <div id="adminGlobalMap" style="height: 480px; border-radius: 12px; margin-top: 16px;"></div>
                     </div>
                     <div style="display: flex; flex-direction: column; gap: 24px;">
-                        <!-- Old Feature Refined: Broadcast Center -->
                         <div class="card glass">
                             <div class="card-title">Global Broadcast</div>
                             <textarea class="search-input" style="width: 100%; height: 80px; margin-top: 12px;" placeholder="Enter message to all operator nodes..."></textarea>
@@ -94,7 +122,7 @@
                 </div>
             </section>
 
-            <!-- Section: Operators (Detailed List - Old Feature) -->
+            <!-- Section: Operators -->
             <section id="operators-section" class="content-section" style="display: none;">
                 <div class="toolbar" style="display: flex; gap: 16px; margin-bottom: 24px;">
                     <div style="position: relative; flex: 1;">
@@ -128,7 +156,7 @@
                 </div>
             </section>
 
-            <!-- Section: Protocols (Leave Management) - Old Feature Restored -->
+            <!-- Section: Protocols (Leave Management) -->
             <section id="protocols-section" class="content-section" style="display: none;">
                 <div class="card glass">
                     <div class="card-title">Pending Mission Leave Protocols</div>
@@ -158,64 +186,124 @@
                 </div>
             </section>
 
-            <!-- Section: Manifests (Reporting) - Old Feature Restored -->
+            <!-- Section: Reports (Restored from Image 1) -->
             <section id="reports-section" class="content-section" style="display: none;">
+                <div class="toolbar" style="display: flex; gap: 16px; margin-bottom: 24px;">
+                    <select class="search-input" style="width: auto;">
+                        <option>Weekly Report</option>
+                        <option>Monthly Report</option>
+                        <option>Yearly Manifest</option>
+                    </select>
+                    <input type="date" class="search-input" style="width: auto;" value="2026-04-01">
+                    <input type="date" class="search-input" style="width: auto;" value="2026-04-21">
+                    <button class="neon-btn"><i class="fas fa-sync"></i> Generate</button>
+                    <button class="neon-btn" style="background: var(--success);"><i class="fas fa-file-pdf"></i> PDF</button>
+                </div>
                 <div class="stats-grid">
-                    <div class="card glass">
-                        <div class="card-title">Export Master Manifest</div>
-                        <p style="color: var(--text-muted); margin: 12px 0;">Generate CSV/PDF reports for nodal attendance.</p>
-                        <div style="display: flex; gap: 12px; margin-top: 20px;">
-                            <button class="neon-btn" style="flex: 1;"><i class="fas fa-file-csv"></i> Export CSV</button>
-                            <button class="neon-btn" style="flex: 1; background: var(--accent-secondary);"><i class="fas fa-file-pdf"></i> Export PDF</button>
-                        </div>
+                    <div class="stat-card"><div class="stat-header">TOTAL EMP</div><div class="stat-value">150</div></div>
+                    <div class="stat-card"><div class="stat-header">PRESENT</div><div class="stat-value">142</div></div>
+                    <div class="stat-card"><div class="stat-header">LATE</div><div class="stat-value">5</div></div>
+                    <div class="stat-card"><div class="stat-header">LEAVE</div><div class="stat-value">3</div></div>
+                </div>
+                <div class="card glass" style="margin-top: 24px;">
+                    <canvas id="reportChart" style="max-height: 400px;"></canvas>
+                </div>
+            </section>
+
+            <!-- Section: Outstation QR Management -->
+            <section id="outstation-qr-section" class="content-section" style="display: none;">
+                <div class="card glass" style="max-width: 600px; margin: 0 auto; text-align: center;">
+                    <div class="card-title">Live Remote Access Token</div>
+                    <p style="color: var(--text-muted); margin-bottom: 24px;">Provide this QR for operators at client sites.</p>
+                    <div style="background: white; padding: 20px; display: inline-block; border-radius: 12px; margin-bottom: 24px;">
+                        <i class="fas fa-qrcode fa-10x" style="color: #000;"></i>
                     </div>
-                    <div class="card glass">
-                        <div class="card-title">Nodal Trends</div>
-                        <canvas id="trendsChart" style="margin-top: 16px;"></canvas>
-                    </div>
+                    <button class="neon-btn" style="width: 100%;">Refresh Security Token</button>
                 </div>
             </section>
         </main>
     </div>
 
     <script>
+        let charts = {};
         let adminMap = null;
 
         function showSection(id) {
             document.querySelectorAll('.content-section').forEach(s => s.style.display = 'none');
-            document.getElementById(id + '-section').style.display = 'block';
-            if (id === 'nexus') setTimeout(() => adminMap.invalidateSize(), 100);
+            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+            
+            const section = document.getElementById(id + '-section');
+            if (section) section.style.display = 'block';
+            
+            const navItem = document.getElementById('nav-' + id);
+            if (navItem) navItem.classList.add('active');
+
+            if (id === 'nexus' && adminMap) setTimeout(() => adminMap.invalidateSize(), 200);
+            
+            initCharts();
+        }
+
+        function initCharts() {
+            // Cleanup existing
+            Object.values(charts).forEach(c => c.destroy());
+            charts = {};
+
+            // Dept Chart (Doughnut)
+            if (document.getElementById('deptChart')) {
+                charts.dept = new Chart(document.getElementById('deptChart'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Engineering', 'Sales', 'Marketing', 'HR', 'Finance'],
+                        datasets: [{ data: [45, 25, 20, 10, 5], backgroundColor: ['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#a855f7'], borderWidth: 0 }]
+                    },
+                    options: { cutout: '70%', plugins: { legend: { position: 'bottom', labels: { color: '#f8fafc' } } } }
+                });
+            }
+
+            // Weekly Trend (Area)
+            if (document.getElementById('weeklyTrendChart')) {
+                charts.trend = new Chart(document.getElementById('weeklyTrendChart'), {
+                    type: 'line',
+                    data: {
+                        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+                        datasets: [{ label: 'Attendance', data: [42, 45, 43, 44, 38], borderColor: '#6366f1', fill: true, backgroundColor: 'rgba(99, 102, 241, 0.1)', tension: 0.4 }]
+                    },
+                    options: { scales: { y: { display: false }, x: { ticks: { color: '#64748b' } } }, plugins: { legend: { display: false } } }
+                });
+            }
+
+            // Report Chart (Bar)
+            if (document.getElementById('reportChart')) {
+                charts.report = new Chart(document.getElementById('reportChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: ['Present', 'Late', 'Leave'],
+                        datasets: [{ data: [142, 5, 3], backgroundColor: ['#10b981', '#f59e0b', '#ef4444'] }]
+                    },
+                    options: { plugins: { legend: { display: false } } }
+                });
+            }
         }
 
         function initMap() {
-            adminMap = L.map('adminGlobalMap', { zoomControl: false }).setView([22.859, 75.954], 12);
+            adminMap = L.map('adminGlobalMap', { zoomControl: false }).setView([10.956, 78.754], 12);
             L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(adminMap);
-            locationService.getOfficeLocations().forEach(loc => {
-                L.circle([loc.lat, loc.lng], { color: '#6366f1', radius: loc.radius }).addTo(adminMap)
+            
+            // Add branch geofences
+            const locations = [
+                { lat: 22.859, lng: 75.954, name: 'Main Office' },
+                { lat: 10.956, lng: 78.754, name: 'Branch Office' }
+            ];
+            
+            locations.forEach(loc => {
+                L.circle([loc.lat, loc.lng], { color: '#6366f1', radius: 1000 }).addTo(adminMap)
                     .bindPopup(`<b>${loc.name}</b> Node`);
             });
         }
 
-        initMap();
-
-        // Heartbeat Chart (Leading Feature)
-        const heartCtx = document.getElementById('heartbeatChart').getContext('2d');
-        new Chart(heartCtx, {
-            type: 'line',
-            data: {
-                labels: Array(20).fill(''),
-                datasets: [{
-                    data: Array(20).fill(0).map(() => Math.random() * 10 + 20),
-                    borderColor: '#6366f1',
-                    borderWidth: 2,
-                    tension: 0.5,
-                    pointRadius: 0
-                }]
-            },
-            options: {
-                plugins: { legend: { display: false } },
-                scales: { x: { display: false }, y: { display: false } }
-            }
+        document.addEventListener('DOMContentLoaded', () => {
+            initMap();
+            initCharts();
         });
     </script>
 </body>
