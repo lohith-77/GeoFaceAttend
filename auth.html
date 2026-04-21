@@ -223,7 +223,7 @@
             </div>
 
             <!-- Login Form -->
-            <form id="loginForm" class="auth-form active">
+            <form id="loginForm" class="auth-form active" onsubmit="handleLogin(); return false;">
                 <div class="form-group">
                     <label>Network Identity (EMP ID)</label>
                     <div class="input-wrapper">
@@ -258,7 +258,7 @@
             </form>
 
             <!-- Register Form -->
-            <form id="registerForm" class="auth-form">
+            <form id="registerForm" class="auth-form" onsubmit="handleRegister(); return false;">
                 <div class="form-group">
                     <label>Full Designation Name</label>
                     <div class="input-wrapper">
@@ -310,18 +310,21 @@
             <p class="auth-subtitle">A verification packet was sent to your email.</p>
             
             <div class="otp-inputs">
-                <input type="text" maxlength="1" class="otp-field">
-                <input type="text" maxlength="1" class="otp-field">
-                <input type="text" maxlength="1" class="otp-field">
-                <input type="text" maxlength="1" class="otp-field">
-                <input type="text" maxlength="1" class="otp-field">
-                <input type="text" maxlength="1" class="otp-field">
+                <input type="text" maxlength="1" class="otp-input" onkeyup="moveToNext(this, 0)" onkeypress="allowOnlyNumbers(event)">
+                <input type="text" maxlength="1" class="otp-input" onkeyup="moveToNext(this, 1)" onkeypress="allowOnlyNumbers(event)">
+                <input type="text" maxlength="1" class="otp-input" onkeyup="moveToNext(this, 2)" onkeypress="allowOnlyNumbers(event)">
+                <input type="text" maxlength="1" class="otp-input" onkeyup="moveToNext(this, 3)" onkeypress="allowOnlyNumbers(event)">
+                <input type="text" maxlength="1" class="otp-input" onkeyup="moveToNext(this, 4)" onkeypress="allowOnlyNumbers(event)">
+                <input type="text" maxlength="1" class="otp-input" onkeyup="moveToNext(this, 5)" onkeypress="allowOnlyNumbers(event)">
             </div>
 
-            <button class="neon-btn" style="width: 100%;" id="verifyBtn">Synchronize</button>
+            <div id="otpTimer" style="margin-bottom: 16px; font-size: 1.2rem; color: var(--accent-primary); font-family: 'JetBrains Mono';">02:00</div>
+
+            <button class="neon-btn" style="width: 100%;" id="verifyBtn" onclick="verifyOTP()">Synchronize</button>
             <p style="margin-top: 24px; font-size: 0.85rem; color: var(--text-muted);">
-                Didn't receive signal? <a href="#" style="color: var(--accent-primary); text-decoration: none;">Resend Packet</a>
+                Didn't receive signal? <button id="resendBtn" onclick="resendOTP()" style="background: none; border: none; color: var(--accent-primary); cursor: pointer; font-weight: 600;">Resend Packet</button>
             </p>
+            <button onclick="closeOTPModal()" style="margin-top: 16px; background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.8rem;">Abort Synchronization</button>
         </div>
     </div>
 

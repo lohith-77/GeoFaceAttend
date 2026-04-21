@@ -19,9 +19,10 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="../assets/js/utils.js"></script>
     <script src="../assets/js/config.js"></script>
+    <script src="../assets/js/auth-guard.js"></script>
 </head>
 
-<body>
+<body data-role="admin">
     <div class="dashboard-layout">
         <aside class="sidebar">
             <div class="sidebar-brand text-gradient">
@@ -95,35 +96,83 @@
 
             <!-- Section: Operators (Detailed List - Old Feature) -->
             <section id="operators-section" class="content-section" style="display: none;">
-                <div class="toolbar">
+                <div class="toolbar" style="display: flex; gap: 16px; margin-bottom: 24px;">
                     <div style="position: relative; flex: 1;">
-                        <input type="text" class="search-input" placeholder="Filter by ID, Name or Department..." style="width: 100%; padding-left: 40px;">
-                        <i class="fas fa-filter" style="position: absolute; left: 15px; top: 12px; color: var(--text-muted);"></i>
+                        <input type="text" class="search-input" placeholder="Search operators..." style="width: 100%; padding-left: 40px;">
+                        <i class="fas fa-search" style="position: absolute; left: 15px; top: 12px; color: var(--text-muted);"></i>
                     </div>
-                    <button class="neon-btn" onclick="alert('Ready for bulk import.')"><i class="fas fa-file-import"></i> Bulk Import</button>
+                    <button class="neon-btn"><i class="fas fa-sync"></i> Refresh</button>
                     <button class="fab-btn"><i class="fas fa-plus"></i></button>
                 </div>
                 <div class="data-table-wrapper card glass">
                     <table class="gfa-table">
                         <thead>
                             <tr>
-                                <th>OPERATOR SIGNATURE</th>
-                                <th>DEPT NODE</th>
-                                <th>LAST GEOLOC</th>
-                                <th>SYNC STATUS</th>
-                                <th>MGMT</th>
+                                <th>OPERATOR</th>
+                                <th>DEPARTMENT</th>
+                                <th>LAST SYNC</th>
+                                <th>STATUS</th>
+                                <th>ACTIONS</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="operatorsTableBody">
                             <tr>
-                                <td><strong>Marcus Aurelius</strong><br><small>NODE-001</small></td>
-                                <td>Command</td>
-                                <td>Rome, IT</td>
+                                <td>Marcus Aurelius</td>
+                                <td>Security</td>
+                                <td>2 mins ago</td>
                                 <td><span class="status-chip online">SYNCED</span></td>
-                                <td><i class="fas fa-ellipsis-h"></i></td>
+                                <td><button class="fab-btn-sm"><i class="fas fa-eye"></i></button></td>
                             </tr>
                         </tbody>
                     </table>
+                </div>
+            </section>
+
+            <!-- Section: Protocols (Leave Management) - Old Feature Restored -->
+            <section id="protocols-section" class="content-section" style="display: none;">
+                <div class="card glass">
+                    <div class="card-title">Pending Mission Leave Protocols</div>
+                    <div class="data-table-wrapper" style="margin-top: 20px;">
+                        <table class="gfa-table">
+                            <thead>
+                                <tr>
+                                    <th>OPERATOR</th>
+                                    <th>DURATION</th>
+                                    <th>OBJECTIVE</th>
+                                    <th>ACTION</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Employee 105</td>
+                                    <td>Apr 25 - Apr 28</td>
+                                    <td>Medical Leave</td>
+                                    <td>
+                                        <button class="fab-btn-sm" style="background: var(--success);"><i class="fas fa-check"></i></button>
+                                        <button class="fab-btn-sm" style="background: var(--danger);"><i class="fas fa-times"></i></button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section: Manifests (Reporting) - Old Feature Restored -->
+            <section id="reports-section" class="content-section" style="display: none;">
+                <div class="stats-grid">
+                    <div class="card glass">
+                        <div class="card-title">Export Master Manifest</div>
+                        <p style="color: var(--text-muted); margin: 12px 0;">Generate CSV/PDF reports for nodal attendance.</p>
+                        <div style="display: flex; gap: 12px; margin-top: 20px;">
+                            <button class="neon-btn" style="flex: 1;"><i class="fas fa-file-csv"></i> Export CSV</button>
+                            <button class="neon-btn" style="flex: 1; background: var(--accent-secondary);"><i class="fas fa-file-pdf"></i> Export PDF</button>
+                        </div>
+                    </div>
+                    <div class="card glass">
+                        <div class="card-title">Nodal Trends</div>
+                        <canvas id="trendsChart" style="margin-top: 16px;"></canvas>
+                    </div>
                 </div>
             </section>
         </main>
