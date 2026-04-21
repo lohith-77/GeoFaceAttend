@@ -108,7 +108,7 @@ async function handleLogin() {
         // Fallback to localStorage
         const users = JSON.parse(localStorage.getItem('users') || '[]');
         const hashedPassword = await hashPassword(password);
-        const user = users.find(u => u.empId === empId && u.password === hashedPassword && u.role === selectedRole);
+        const user = users.find(u => u.empId === empId && u.password === hashedPassword);
 
         if (user) {
             Utils.hideLoading();
@@ -311,7 +311,8 @@ function verifyOTP() {
             Utils.hideLoading();
             Utils.showToast('Login successful!', 'success');
 
-            if (selectedRole === 'admin') {
+            const currentUser = Utils.getStorage('currentUser');
+            if (currentUser && currentUser.role === 'admin') {
                 window.location.href = 'admin/dashboard.html';
             } else {
                 window.location.href = 'employee/dashboard.html';
