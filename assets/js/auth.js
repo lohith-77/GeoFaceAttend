@@ -249,11 +249,11 @@ let otpTimer;
 function startOTPTimer() {
     if (otpTimer) clearInterval(otpTimer);
 
-    let timeLeft = 120;
+    let timeLeft = 60;
     const timerDisplay = document.getElementById('otpTimer');
     const resendBtn = document.getElementById('resendBtn');
 
-    if (timerDisplay) timerDisplay.textContent = '02:00';
+    if (timerDisplay) timerDisplay.textContent = '01:00';
     if (resendBtn) resendBtn.disabled = true;
 
     otpTimer = setInterval(() => {
@@ -287,7 +287,7 @@ function allowOnlyNumbers(event) {
 }
 
 function resendOTP() {
-    Utils.showToast('OTP resent to your email (Demo: 123456)', 'info');
+    Utils.showToast('OTP resent to your email (Demo: 1234)', 'info');
     startOTPTimer();
     document.querySelectorAll('.otp-input').forEach(input => input.value = '');
     document.querySelectorAll('.otp-input')[0]?.focus();
@@ -297,7 +297,7 @@ function verifyOTP() {
     const digits = document.querySelectorAll('.otp-input');
     const otp = Array.from(digits).map(d => d.value).join('');
 
-    if (otp === '123456') {
+    if (otp === '1234') {
         Utils.showLoading('Verifying OTP...');
 
         setTimeout(() => {

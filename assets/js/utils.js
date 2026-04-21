@@ -507,11 +507,11 @@ const Utils = {
      * Show loading overlay
      * @param {string} message - Loading message
      */
-    showLoading(message = 'Loading...') {
+    showLoading(message = 'Synchronizing...') {
         let overlay = document.getElementById('loadingOverlay');
         if (!overlay) {
             overlay = this.createElement('div', { id: 'loadingOverlay', className: 'loading-overlay' }, [
-                this.createElement('div', { className: 'spinner' }),
+                this.createElement('div', { className: 'quantum-spinner' }),
                 this.createElement('p', { id: 'loadingMessage' }, message)
             ]);
             document.body.appendChild(overlay);
@@ -540,7 +540,9 @@ const Utils = {
         const toast = this.createElement('div', {
             className: `toast-notification toast-${type}`
         }, [
-            this.createElement('div', { className: 'toast-icon' }, this.getToastIcon(type)),
+            this.createElement('div', { className: 'toast-icon' }, [
+                this.createElement('i', { className: this.getToastIcon(type) })
+            ]),
             this.createElement('div', { className: 'toast-content' }, [
                 this.createElement('strong', {}, this.capitalize(type)),
                 this.createElement('p', {}, message)
@@ -557,12 +559,17 @@ const Utils = {
 
     getToastIcon(type) {
         const icons = {
-            success: '✅',
-            error: '❌',
-            warning: '⚠️',
-            info: 'ℹ️'
+            success: 'fas fa-check-circle',
+            error: 'fas fa-exclamation-triangle',
+            warning: 'fas fa-exclamation-circle',
+            info: 'fas fa-info-circle'
         };
-        return icons[type] || '📌';
+        return icons[type] || 'fas fa-bell';
+    },
+
+    capitalize(str) {
+        if (!str) return '';
+        return str.charAt(0).toUpperCase() + str.slice(1);
     },
 
     // ============ BROWSER UTILITIES ============

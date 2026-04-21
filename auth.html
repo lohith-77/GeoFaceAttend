@@ -324,22 +324,21 @@
             <h2 class="auth-title">Verify Signal</h2>
             <p class="auth-subtitle">A verification packet was sent to your email.</p>
             
-            <div class="otp-inputs">
+            <div class="otp-inputs" style="margin: 24px 0;">
                 <input type="text" maxlength="1" class="otp-input" onkeyup="moveToNext(this, 0)" onkeypress="allowOnlyNumbers(event)">
                 <input type="text" maxlength="1" class="otp-input" onkeyup="moveToNext(this, 1)" onkeypress="allowOnlyNumbers(event)">
                 <input type="text" maxlength="1" class="otp-input" onkeyup="moveToNext(this, 2)" onkeypress="allowOnlyNumbers(event)">
                 <input type="text" maxlength="1" class="otp-input" onkeyup="moveToNext(this, 3)" onkeypress="allowOnlyNumbers(event)">
-                <input type="text" maxlength="1" class="otp-input" onkeyup="moveToNext(this, 4)" onkeypress="allowOnlyNumbers(event)">
-                <input type="text" maxlength="1" class="otp-input" onkeyup="moveToNext(this, 5)" onkeypress="allowOnlyNumbers(event)">
             </div>
 
-            <div id="otpTimer" style="margin-bottom: 16px; font-size: 1.2rem; color: var(--accent-primary); font-family: 'JetBrains Mono';">02:00</div>
+            <div id="otpTimer" style="margin-bottom: 20px; font-size: 1.1rem; color: var(--accent-primary); font-family: 'JetBrains Mono';">01:00</div>
 
-            <button class="neon-btn" style="width: 100%;" id="verifyBtn" onclick="verifyOTP()">Synchronize</button>
-            <p style="margin-top: 24px; font-size: 0.85rem; color: var(--text-muted);">
-                Didn't receive signal? <button id="resendBtn" onclick="resendOTP()" style="background: none; border: none; color: var(--accent-primary); cursor: pointer; font-weight: 600;">Resend Packet</button>
-            </p>
-            <button onclick="closeOTPModal()" style="margin-top: 16px; background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.8rem;">Abort Synchronization</button>
+            <button class="neon-btn" style="width: 100%;" id="verifyBtn" onclick="verifyOTP()">Verify Identity</button>
+            
+            <div style="margin-top: 20px; display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem;">
+                <button id="resendBtn" onclick="resendOTP()" style="background: none; border: none; color: var(--accent-primary); cursor: pointer; font-weight: 600;">Resend Code</button>
+                <button onclick="closeOTPModal()" style="background: none; border: none; color: var(--text-muted); cursor: pointer;">Cancel</button>
+            </div>
         </div>
     </div>
 
