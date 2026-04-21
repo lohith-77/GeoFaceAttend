@@ -179,10 +179,10 @@
                 <div class="card glass" style="max-width: 600px; margin: 0 auto;">
                     <div class="card-title">Biometric Enrollment</div>
                     <p style="color: var(--text-muted); margin-bottom: 24px;">Register a new facial signature for this operator node.</p>
-                    <div class="camera-preview" style="height: 300px; background: var(--surface-2); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                    <div class="camera-preview" id="enrollPreview" style="height: 300px; background: var(--surface-2); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
                         <i class="fas fa-camera fa-3x" style="color: var(--accent-primary); opacity: 0.5;"></i>
                     </div>
-                    <button class="neon-btn" style="margin-top: 24px; width: 100%;">Capture Baseline Signature</button>
+                    <button class="neon-btn" style="margin-top: 24px; width: 100%;" onclick="captureEnrollment()">Capture Baseline Signature</button>
                 </div>
             </section>
 
@@ -218,20 +218,20 @@
             <section id="leave-section" class="content-section" style="display: none;">
                 <div class="card glass" style="max-width: 700px; margin: 0 auto;">
                     <div class="card-title">Mission Leave Protocol</div>
-                    <form id="leaveForm" style="margin-top: 24px;">
+                    <form id="leaveForm" style="margin-top: 24px;" onsubmit="handleLeaveSubmission(event)">
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                             <div class="form-group">
                                 <label style="display: block; margin-bottom: 8px; color: var(--text-muted); font-size: 0.8rem;">START DATE</label>
-                                <input type="date" class="search-input" style="width: 100%;">
+                                <input type="date" class="search-input" id="leaveStart" style="width: 100%;" required>
                             </div>
                             <div class="form-group">
                                 <label style="display: block; margin-bottom: 8px; color: var(--text-muted); font-size: 0.8rem;">END DATE</label>
-                                <input type="date" class="search-input" style="width: 100%;">
+                                <input type="date" class="search-input" id="leaveEnd" style="width: 100%;" required>
                             </div>
                         </div>
                         <div class="form-group" style="margin-top: 20px;">
                             <label style="display: block; margin-bottom: 8px; color: var(--text-muted); font-size: 0.8rem;">REASON / MISSION DESCRIPTION</label>
-                            <textarea class="search-input" style="width: 100%; height: 100px;" placeholder="Describe mission leave details..."></textarea>
+                            <textarea class="search-input" id="leaveReason" style="width: 100%; height: 100px;" placeholder="Describe mission leave details..." required></textarea>
                         </div>
                         <button type="submit" class="neon-btn" style="margin-top: 24px; width: 100%;">Submit Protocol Request</button>
                     </form>
@@ -294,7 +294,14 @@
 
         function showSection(id) {
             document.querySelectorAll('.content-section').forEach(s => s.style.display = 'none');
-            document.getElementById(id + '-section').style.display = 'block';
+            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+            
+            const section = document.getElementById(id + '-section');
+            if (section) section.style.display = 'block';
+            
+            const navItem = document.getElementById('nav-' + id);
+            if (navItem) navItem.classList.add('active');
+            
             if (id === 'overview' && map) setTimeout(() => map.invalidateSize(), 100);
         }
 
@@ -316,7 +323,7 @@
 
         async function runBiometricSequence() {
             const term = 'verificationTerminal';
-            const btn = document.getElementById('verifyIdentityBtn');
+            const btn = event.target;
             btn.disabled = true;
 
             logToTerminal(term, '> Initiating location check...', 'info');
@@ -330,30 +337,41 @@
 
             logToTerminal(term, '> Geofence verified. Starting facial analysis...', 'success');
             const video = document.getElementById('attendanceVideo');
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-            video.srcObject = stream;
+            document.getElementById('facePortal').style.display = 'block';
+            
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
 
-            // Simulated Leading Feature: Liveness
-            document.getElementById('livenessAlert').style.display = 'flex';
-            setTimeout(async () => {
-                document.getElementById('livenessAlert').style.display = 'none';
-                logToTerminal(term, '> Liveness detected. Verifying signature...', 'success');
-                
-                const face = await faceVerification.verifyFace(true);
-                if (face.success) {
-                    logToTerminal(term, '> IDENTITY CONFIRMED. Syncing with central node...', 'success');
-                    attendanceState = (attendanceState === 'IN') ? 'OUT' : 'IN';
-                    localStorage.setItem('attendanceState', attendanceState);
-                    setTimeout(() => {
-                        updateAttendanceUI();
-                        showSection('overview');
+                // Simulated Leading Feature: Liveness
+                document.getElementById('livenessAlert').style.display = 'flex';
+                setTimeout(async () => {
+                    document.getElementById('livenessAlert').style.display = 'none';
+                    logToTerminal(term, '> Liveness detected. Verifying signature...', 'success');
+                    
+                    const face = await faceVerification.verifyFace(true);
+                    if (face.success) {
+                        logToTerminal(term, '> IDENTITY CONFIRMED. Syncing with central node...', 'success');
+                        attendanceState = (attendanceState === 'IN') ? 'OUT' : 'IN';
+                        localStorage.setItem('attendanceState', attendanceState);
+                        
+                        setTimeout(() => {
+                            updateAttendanceUI();
+                            showSection('overview');
+                            btn.disabled = false;
+                            stream.getTracks().forEach(t => t.stop());
+                            document.getElementById('facePortal').style.display = 'none';
+                        }, 1500);
+                    } else {
+                        logToTerminal(term, `> Verification failed: ${face.message}`, 'error');
                         btn.disabled = false;
-                    }, 1500);
-                } else {
-                    logToTerminal(term, `> Verification failed: ${face.message}`, 'error');
-                    btn.disabled = false;
-                }
-            }, 2000);
+                        stream.getTracks().forEach(t => t.stop());
+                    }
+                }, 2000);
+            } catch (err) {
+                logToTerminal(term, `> Hardware error: ${err.message}`, 'error');
+                btn.disabled = false;
+            }
         }
 
         function logToTerminal(id, message, type) {
@@ -377,6 +395,41 @@
             map = L.map('geofenceMap', { zoomControl: false }).setView([office.lat, office.lng], 16);
             L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
             L.circle([office.lat, office.lng], { color: '#6366f1', radius: office.radius, fillOpacity: 0.1 }).addTo(map);
+        }
+
+        let qrScanner = null;
+        function startScanner() {
+            Utils.showLoading('Initializing Optical Ingress...');
+            setTimeout(() => {
+                Utils.hideLoading();
+                Utils.showToast('Scanner Ready', 'info');
+                // Mock scanner start for demo
+                document.getElementById('qrVideo').style.background = 'linear-gradient(45deg, #000, #1e1e1e)';
+            }, 1000);
+        }
+
+        function stopScanner() {
+            Utils.showToast('Scanner Deactivated', 'warning');
+        }
+
+        function handleLeaveSubmission(e) {
+            e.preventDefault();
+            Utils.showLoading('Transmitting Protocol Request...');
+            setTimeout(() => {
+                Utils.hideLoading();
+                Utils.showToast('Mission Leave Protocol Requested', 'success');
+                e.target.reset();
+                showSection('overview');
+            }, 1500);
+        }
+
+        function captureEnrollment() {
+            Utils.showLoading('Analyzing Baseline Signature...');
+            setTimeout(() => {
+                Utils.hideLoading();
+                Utils.showToast('Biometric Baseline Secured', 'success');
+                showSection('overview');
+            }, 2000);
         }
 
         function toggleNotifications() {
