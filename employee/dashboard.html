@@ -137,7 +137,7 @@
                             <div style="font-weight: 600;">Main Office</div>
                             <div style="font-size: 0.8rem; color: var(--text-muted);">123 Business Avenue, Downtown</div>
                         </div>
-                        <button class="neon-btn" style="margin-left: auto;" onclick="runBiometricSequence()">Verify Location</button>
+                        <button class="neon-btn" style="margin-left: auto;" onclick="runBiometricSequence(event)">Verify Location</button>
                     </div>
 
                     <div class="biometric-portal" id="facePortal" style="display: none;">
@@ -321,9 +321,9 @@
             }
         }
 
-        async function runBiometricSequence() {
+        async function runBiometricSequence(event) {
             const term = 'verificationTerminal';
-            const btn = event.target;
+            const btn = event ? event.target : document.querySelector('#attendance-section .neon-btn');
             btn.disabled = true;
 
             logToTerminal(term, '> Initiating location check...', 'info');

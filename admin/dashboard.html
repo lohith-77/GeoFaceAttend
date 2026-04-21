@@ -222,7 +222,7 @@
                     <div class="card-title">Live Remote Access Token</div>
                     <p style="color: var(--text-muted); margin-bottom: 24px;">Provide this QR for operators at client sites.</p>
                     <div style="background: white; padding: 20px; display: inline-block; border-radius: 12px; margin-bottom: 24px;" id="qrWrapper">
-                        <i class="fas fa-qrcode fa-10x" style="color: #000;"></i>
+                        <img id="qrTokenImage" src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=GFA-SYNC-177682" style="width: 200px; height: 200px; display: block;">
                     </div>
                     <button class="neon-btn" style="width: 100%;" onclick="refreshToken()">Refresh Security Token</button>
                 </div>
@@ -322,9 +322,13 @@
 
         function refreshToken() {
             const qrWrapper = document.getElementById('qrWrapper');
+            const qrImg = document.getElementById('qrTokenImage');
             qrWrapper.style.opacity = '0.3';
             Utils.showLoading('Regenerating Security Token...');
+            
             setTimeout(() => {
+                const newToken = 'GFA-SYNC-' + Math.floor(Math.random() * 999999);
+                qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${newToken}`;
                 Utils.hideLoading();
                 qrWrapper.style.opacity = '1';
                 Utils.showToast('Remote Access Token Refreshed!', 'success');
