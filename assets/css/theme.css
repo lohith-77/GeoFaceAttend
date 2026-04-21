@@ -4,7 +4,7 @@
     --accent-secondary: #06b6d4;
     --accent-vibrant: #ec4899;
     
-    /* Dark Theme Surface */
+    /* DEFAULT Theme Surface (Dark) */
     --surface-0: #020617;
     --surface-1: #0f172a;
     --surface-2: #1e293b;
@@ -32,6 +32,23 @@
     --radius-md: 16px;
     --radius-lg: 24px;
     --radius-xl: 32px;
+}
+
+/* Light Mode Overrides */
+[data-theme="light"] {
+    --surface-0: #f8fafc;
+    --surface-1: #ffffff;
+    --surface-2: #f1f5f9;
+    --surface-3: #e2e8f0;
+    
+    --text-core: #0f172a;
+    --text-sub: #475569;
+    --text-muted: #64748b;
+    
+    --glass-bg: rgba(255, 255, 255, 0.8);
+    --glass-border: rgba(0, 0, 0, 0.05);
+    --shadow-soft: 0 10px 30px -10px rgba(0, 0, 0, 0.1);
+    --shadow-neon: 0 0 20px rgba(99, 102, 241, 0.1);
 }
 
 * {

@@ -722,29 +722,31 @@ const Utils = {
      * @returns {boolean} New dark mode state
      */
     toggleDarkMode() {
-        const isDark = document.body.classList.toggle('dark-mode');
-        this.setStorage('darkMode', isDark);
+        const currentTheme = document.documentElement.getAttribute('data-theme');
+        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+        
+        document.documentElement.setAttribute('data-theme', newTheme);
+        this.setStorage('theme', newTheme);
 
         // Update theme color meta tag
         const themeColor = document.querySelector('meta[name="theme-color"]');
         if (themeColor) {
-            themeColor.setAttribute('content', isDark ? '#0f172a' : '#4361ee');
+            themeColor.setAttribute('content', newTheme === 'dark' ? '#020617' : '#ffffff');
         }
 
-        return isDark;
+        return newTheme === 'dark';
     },
 
     /**
      * Initialize theme from storage
      */
     initTheme() {
-        const darkMode = this.getStorage('darkMode');
-        if (darkMode) {
-            document.body.classList.add('dark-mode');
-            const themeColor = document.querySelector('meta[name="theme-color"]');
-            if (themeColor) {
-                themeColor.setAttribute('content', '#0f172a');
-            }
+        const savedTheme = this.getStorage('theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        if (themeColor) {
+            themeColor.setAttribute('content', savedTheme === 'dark' ? '#020617' : '#ffffff');
         }
     }
 };
