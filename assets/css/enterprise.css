@@ -1,0 +1,115 @@
+/* 🏢 enterprise.css | High-Fidelity Office Refinements */
+
+:root {
+    --table-header-bg: rgba(99, 102, 241, 0.05);
+    --table-hover-bg: rgba(255, 255, 255, 0.02);
+    --input-focus-glow: 0 0 15px rgba(99, 102, 241, 0.2);
+}
+
+/* 💎 Enterprise Scrollbars */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { 
+    background: var(--surface-3); 
+    border-radius: 10px; 
+    transition: background 0.3s;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--accent-primary); }
+
+/* 📊 Enterprise Table Interface */
+.gfa-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    font-size: 0.9rem;
+}
+
+.gfa-table th {
+    text-align: left;
+    padding: 16px 24px;
+    background: var(--table-header-bg);
+    color: var(--text-sub);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-size: 0.75rem;
+    border-bottom: 2px solid var(--glass-border);
+}
+
+.gfa-table td {
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--glass-border);
+    transition: background 0.2s;
+}
+
+.gfa-table tr:hover td {
+    background: var(--table-hover-bg);
+}
+
+/* ✨ Professional Badge System */
+.badge {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.badge-success { background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2); }
+.badge-warning { background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.2); }
+.badge-danger { background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); }
+
+/* 🚀 Interactive Input Refinements */
+.search-input {
+    background: var(--surface-2);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md);
+    padding: 12px 20px;
+    color: var(--text-core);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    box-shadow: var(--input-focus-glow);
+    background: var(--surface-1);
+}
+
+/* 🦴 Skeleton Loaders for Async UX */
+@keyframes shimmer {
+    0% { background-position: -468px 0; }
+    100% { background-position: 468px 0; }
+}
+
+.skeleton {
+    background: #f6f7f8;
+    background-image: linear-gradient(to right, #f6f7f8 0%, #edeef1 20%, #f6f7f8 40%, #f6f7f8 100%);
+    background-repeat: no-repeat;
+    background-size: 800px 104px;
+    display: inline-block;
+    position: relative;
+    animation: shimmer 1s linear infinite forwards;
+}
+
+[data-theme="dark"] .skeleton {
+    background: #1e293b;
+    background-image: linear-gradient(to right, #1e293b 0%, #334155 20%, #1e293b 40%, #1e293b 100%);
+}
+
+/* 🏆 Verified Identity Stamp */
+.verified-stamp {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    opacity: 0.6;
+}

@@ -1,40 +1,43 @@
-# GeoFaceAttend v3.2 | Quantum Workforce Synchronization
+# GeoFaceAttend v3.2 | Enterprise Nodal Synchronization Platform
 
 ![GeoFaceAttend Hero](geofaceattend_hero_image_1776795699709.png)
 
-## 🌌 Sovereign Infrastructure for Biometric Attendance
-GeoFaceAttend (GFA) is an enterprise-grade, high-fidelity biometric attendance and geospatial synchronization platform. Designed for the modernization of workforce management, GFA leverages neural-face verification and nodal geofencing to ensure 100% operational integrity.
+## 🏢 Professional Internship Project Overview
+**GeoFaceAttend (GFA)** is a high-fidelity biometric attendance and geospatial synchronization infrastructure developed as a primary internship capstone. It is designed to modernize workforce management through neural face verification and precision nodal geofencing.
+
+### 🎯 Objective
+To deliver a sovereign, enterprise-grade attendance solution that ensures 100% operational integrity by synchronizing biometric identity with physical location telemetry.
 
 ---
 
-### 🚀 Key Capabilities
-- **Neural Ingress**: 4-digit rapid OTP synchronization combined with liveness-verified facial recognition.
-* **Tactical Geofencing**: Precision geofence enforcement within a 1km operational radius, synchronized via Leaflet Nodal Maps.
-* **Outstation Hub**: Secure remote check-in via encrypted QR tokenization for operators in the field.
-* **Command Nexus**: Advanced Admin Control Center with real-time telemetry, departmental doughnut analytics, and weekly attendance area-trends.
-* **PWA Persistence**: Fully offline-capable Service Worker architecture with background synchronization protocol.
+### 🛡️ Tactical Capabilities
+- **Neural Ingress Engine**: 6-digit rapid-sync OTP combined with liveness-verified facial recognition (Eye-blink detection).
+- **Geospatial Integrity**: 1KM precision geofencing enforced via Leaflet Nodal Mapping.
+- **Outstation Synchronization**: Encrypted QR tokenization for remote operators.
+- **Nexus Command Center**: Real-time administrative telemetry, weekly trend analytics (Chart.js), and mission-critical leave management.
 
-### 🛠️ Technology Stack
-- **Frontend**: Vanila HTML5, CSS3 (Quantum Dark-Mode), JavaScript (ESNext).
-- **Engines**: 
-  - `face-api.js` (Neural Face Detection)
-  - `Leaflet.js` (Geospatial Mapping)
-  - `Chart.js 4.4` (Visual Analytics)
-- **Deployment**: Render Blueprint (`render.yaml`).
+### ⚙️ Technical Architecture
+- **Frontend Architecture**: High-performance Vanilla ESNext, Modular CSS3 (Quantum Dark/Enterprise Light).
+- **Security Protocol**: Centralized `Auth Guard` implementation for role-based access control (RBAC).
+- **Data Persistence**: Offline-first PWA architecture with Service Worker background synchronization.
+- **Analytics Engine**: `Chart.js 4.4` for tactical data visualization.
 
 ---
 
-### 📂 Repository Structure
-- `/admin`: Command Center and Analytics Nodal Panels.
-- `/employee`: Operator Dashboard and Ingress Protocol.
+### 📂 Operational Structure
+- `/admin`: Sovereign Command Nexus for strategic oversight.
+- `/employee`: Tactical Operator Terminal for biometric check-in.
 - `/assets`: 
-  - `/css`: Quantum theme variables and layout modules.
-  - `/js`: Core business logic, location services, and auth-guards.
-- `/android-app-final`: Native Android wrapper for mobile nodal deployment.
-- `render.yaml`: High-availability deployment blueprint.
+  - `theme.css`: Core design tokens and variable definitions.
+  - `enterprise.css`: Corporate-grade UI refinements and data-table modules.
+  - `auth.js`: Primary authentication and signal verification logic.
 
-### 🔐 Security & Access Control
-All internal dashboards are protected by a centralized **Auth Guard** (`/assets/js/auth-guard.js`) ensuring Clearance Level enforcement. Credentials are encrypted on the client using SHA-256 baseline hashing.
+### 📋 Internship Submission Details
+- **Project Lead**: [User Name]
+- **Role**: Software Engineering Intern
+- **Target Organization**: [Office Name]
+- **Version**: 3.2.0 (Quantum-Stabilized)
 
-**Enterprise Support**: contact@geofaceattend.com
-**Version**: 3.2.0 [Quantum Ready]
+---
+
+**CONFIDENTIALITY NOTICE**: This software and its associated documentation are proprietary and intended for authorized enterprise ingress only.
