@@ -46,6 +46,7 @@
                 <li class="nav-item" id="nav-attendance"><a href="#" onclick="showSection('attendance')"><i class="fas fa-satellite-dish"></i> Attendance Hub</a></li>
                 <li class="nav-item" id="nav-history"><a href="#" onclick="showSection('history')"><i class="fas fa-stream"></i> Time-Logs</a></li>
                 <li class="nav-item" id="nav-leave"><a href="#" onclick="showSection('leave')"><i class="fas fa-calendar-minus"></i> Leave</a></li>
+                <li class="nav-item" id="nav-enroll"><a href="#" onclick="showSection('enroll')"><i class="fas fa-id-card"></i> Biometric Enroll</a></li>
                 <li class="nav-item" id="nav-outstation"><a href="#" onclick="showSection('outstation')"><i class="fas fa-qrcode"></i> Outstation QR</a></li>
             </ul>
 
@@ -387,9 +388,29 @@
                 modal.style.display = 'flex';
                 
                 try {
-                    const stream = await faceVerification.startCamera(video);
+                    const stream = await faceVerification.startCamera(video).catch(err => {
+                        if (faceVerification.demoMode) {
+                            console.warn('🎥 Camera failed but proceeding in DEMO MODE');
+                            return null; // Continue with null stream in demo mode
+                        }
+                        throw err;
+                    });
+                    
                     scannerStatus.textContent = 'Analyzing...';
                     let livenessStarted = false;
+
+                    // If in Demo Mode and camera failed, trigger a simulated sequence immediately
+                    if (faceVerification.demoMode && !stream) {
+                        scannerStatus.textContent = 'READY (SIMULATED)';
+                        setTimeout(() => {
+                            triggerLivenessFlow(null, term, {}).then(success => {
+                                modal.style.display = 'none';
+                                if (btn) btn.disabled = false;
+                                resolve(success);
+                            });
+                        }, 1000);
+                        return;
+                    }
 
                     faceVerification.startMonitoring(async (data) => {
                         if (data.detected) {
