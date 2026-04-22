@@ -142,7 +142,16 @@
 
                     <div class="biometric-portal" id="facePortal" style="display: none;">
                         <video id="attendanceVideo" autoplay playsinline></video>
-                        <div class="face-frame"></div>
+                        <div class="scanner-overlay">
+                            <div class="scan-line"></div>
+                            <div class="scanner-frame"></div>
+                            <div class="scanner-status" id="scannerStatus">Initializing...</div>
+                            <div class="face-data-readout">
+                                <div class="data-item">CONF: <span id="confVal">0.00</span></div>
+                                <div class="data-item">EAR: <span id="earVal">0.00</span></div>
+                                <div class="data-item">EYES: <span id="eyesVal">N/A</span></div>
+                            </div>
+                        </div>
                         <div class="liveness-check" id="livenessAlert"><span>PLEASE BLINK NOW</span></div>
                     </div>
                     <div class="terminal-box" id="verificationTerminal"></div>
@@ -153,14 +162,19 @@
             <section id="outstation-section" class="content-section" style="display: none;">
                 <div class="card glass" style="max-width: 800px; margin: 0 auto;">
                     <div class="card-title">Outstation Check-in (Remote)</div>
-                    <div class="qr-scanner-card" style="position: relative; height: 350px; background: #000; border-radius: 12px; margin-top: 20px; overflow: hidden; display: flex; align-items: center; justify-content: center;">
-                        <video id="qrVideo" style="width: 100%; height: 100%; object-fit: cover;"></video>
-                        <div class="qr-overlay" style="position: absolute; width: 250px; height: 250px; border: 2px solid var(--accent-primary); border-radius: 20px; box-shadow: 0 0 0 1000px rgba(0,0,0,0.5);"></div>
+                    <div class="qr-scanner-card" style="position: relative; height: 400px; width: 400px; margin: 20px auto; background: #000; border-radius: 50%; overflow: hidden; border: 4px solid var(--surface-2); box-shadow: 0 0 50px rgba(0,0,0,0.5);">
+                        <video id="qrVideo" style="width: 100%; height: 100%; object-fit: cover; filter: grayscale(0.5) contrast(1.2);"></video>
+                        <div class="scanner-overlay">
+                            <div class="scan-line" style="animation-duration: 2s;"></div>
+                            <div class="scanner-frame"></div>
+                            <div class="scanner-status" id="qrStatus">OPTICAL STANDBY</div>
+                            <div class="qr-target" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 200px; height: 200px; border: 2px dashed var(--accent-secondary); border-radius: 20px; opacity: 0.5;"></div>
+                        </div>
                     </div>
                     
-                    <div style="display: flex; gap: 16px; padding-top: 24px;">
-                        <button class="neon-btn" onclick="startScanner()"><i class="fas fa-camera"></i> Start Scanner</button>
-                        <button class="neon-btn" style="background: var(--surface-2);" onclick="stopScanner()">Stop</button>
+                    <div style="display: flex; gap: 16px; justify-content: center; padding-top: 24px;">
+                        <button class="neon-btn" onclick="startScanner()"><i class="fas fa-camera"></i> Initialize Optical Ingress</button>
+                        <button class="neon-btn" style="background: var(--surface-2);" onclick="stopScanner()">Deactivate</button>
                     </div>
 
                     <div class="instructions" style="margin-top: 32px; padding: 20px; border-left: 4px solid var(--accent-primary); background: rgba(255,255,255,0.02);">
@@ -179,10 +193,18 @@
                 <div class="card glass" style="max-width: 600px; margin: 0 auto;">
                     <div class="card-title">Biometric Enrollment</div>
                     <p style="color: var(--text-muted); margin-bottom: 24px;">Register a new facial signature for this operator node.</p>
-                    <div class="camera-preview" id="enrollPreview" style="height: 300px; background: var(--surface-2); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
-                        <i class="fas fa-camera fa-3x" style="color: var(--accent-primary); opacity: 0.5;"></i>
+                    <div class="biometric-portal" id="enrollPortal" style="height: 350px; width: 350px; border-radius: 50%; margin: 0 auto; background: var(--surface-2); position: relative; overflow: hidden;">
+                        <video id="enrollVideo" autoplay playsinline style="width: 100%; height: 100%; object-fit: cover;"></video>
+                        <div class="scanner-overlay">
+                            <div class="scan-line"></div>
+                            <div class="scanner-frame"></div>
+                            <div class="scanner-status" id="enrollStatus">OFFLINE</div>
+                        </div>
                     </div>
-                    <button class="neon-btn" style="margin-top: 24px; width: 100%;" onclick="captureEnrollment()">Capture Baseline Signature</button>
+                    <div style="display: flex; gap: 12px; margin-top: 24px;">
+                        <button class="neon-btn" style="flex: 1;" onclick="startEnrollment()">Start Camera</button>
+                        <button class="neon-btn" style="flex: 1; background: var(--surface-2);" id="captureBtn" onclick="captureEnrollment()" disabled>Capture Baseline</button>
+                    </div>
                 </div>
             </section>
 
@@ -337,37 +359,71 @@
 
             logToTerminal(term, '> Geofence verified. Starting facial analysis...', 'success');
             const video = document.getElementById('attendanceVideo');
-            document.getElementById('facePortal').style.display = 'block';
+            const portal = document.getElementById('facePortal');
+            const scannerStatus = document.getElementById('scannerStatus');
+            portal.style.display = 'block';
             
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                video.srcObject = stream;
+                const stream = await faceVerification.startCamera(video);
+                scannerStatus.textContent = 'Analyzing...';
+
+                // Start real-time monitoring for feedback
+                faceVerification.startMonitoring((data) => {
+                    if (data.detected) {
+                        document.getElementById('confVal').textContent = data.confidence.toFixed(2);
+                        document.getElementById('earVal').textContent = data.ear.toFixed(2);
+                        document.getElementById('eyesVal').textContent = data.eyesOpen ? 'OPEN' : 'CLOSED';
+                        scannerStatus.textContent = data.eyesOpen ? 'READY' : 'EYES CLOSED';
+                        scannerStatus.style.color = data.eyesOpen ? 'var(--success)' : 'var(--warning)';
+                    } else {
+                        scannerStatus.textContent = 'NO FACE DETECTED';
+                        scannerStatus.style.color = 'var(--danger)';
+                    }
+                });
 
                 // Simulated Leading Feature: Liveness
-                document.getElementById('livenessAlert').style.display = 'flex';
                 setTimeout(async () => {
-                    document.getElementById('livenessAlert').style.display = 'none';
-                    logToTerminal(term, '> Liveness detected. Verifying signature...', 'success');
+                    document.getElementById('livenessAlert').style.display = 'flex';
+                    scannerStatus.textContent = 'LIVENESS CHECK';
+                    logToTerminal(term, '> Awaiting liveness confirmation (Blink)...', 'wait');
                     
-                    const face = await faceVerification.verifyFace(true);
-                    if (face.success) {
-                        logToTerminal(term, '> IDENTITY CONFIRMED. Syncing with central node...', 'success');
-                        attendanceState = (attendanceState === 'IN') ? 'OUT' : 'IN';
-                        localStorage.setItem('attendanceState', attendanceState);
+                    const liveness = await faceVerification.verifyLiveness();
+                    document.getElementById('livenessAlert').style.display = 'none';
+
+                    if (liveness.success) {
+                        logToTerminal(term, '> Liveness confirmed. Verifying identity...', 'success');
+                        scannerStatus.textContent = 'VERIFYING...';
                         
-                        setTimeout(() => {
-                            updateAttendanceUI();
-                            showSection('overview');
+                        const face = await faceVerification.verifyFace(true);
+                        if (face.success) {
+                            logToTerminal(term, '> IDENTITY CONFIRMED. Syncing with central node...', 'success');
+                            scannerStatus.textContent = 'SUCCESS';
+                            scannerStatus.style.color = 'var(--success)';
+                            
+                            attendanceState = (attendanceState === 'IN') ? 'OUT' : 'IN';
+                            localStorage.setItem('attendanceState', attendanceState);
+                            
+                            setTimeout(() => {
+                                updateAttendanceUI();
+                                showSection('overview');
+                                btn.disabled = false;
+                                faceVerification.stopCamera(stream);
+                                portal.style.display = 'none';
+                                logToTerminal(term, `> Protocol complete: ${attendanceState} recorded.`, 'info');
+                            }, 2000);
+                        } else {
+                            logToTerminal(term, `> Verification failed: ${face.message}`, 'error');
+                            scannerStatus.textContent = 'FAILED';
                             btn.disabled = false;
-                            stream.getTracks().forEach(t => t.stop());
-                            document.getElementById('facePortal').style.display = 'none';
-                        }, 1500);
+                            faceVerification.stopCamera(stream);
+                        }
                     } else {
-                        logToTerminal(term, `> Verification failed: ${face.message}`, 'error');
+                        logToTerminal(term, `> Liveness failed: ${liveness.message}`, 'error');
+                        scannerStatus.textContent = 'TIMEOUT';
                         btn.disabled = false;
-                        stream.getTracks().forEach(t => t.stop());
+                        faceVerification.stopCamera(stream);
                     }
-                }, 2000);
+                }, 3000);
             } catch (err) {
                 logToTerminal(term, `> Hardware error: ${err.message}`, 'error');
                 btn.disabled = false;
@@ -399,16 +455,23 @@
 
         let qrScanner = null;
         function startScanner() {
+            const status = document.getElementById('qrStatus');
+            status.textContent = 'SCANNING...';
+            status.style.color = 'var(--accent-secondary)';
+            
             Utils.showLoading('Initializing Optical Ingress...');
             setTimeout(() => {
                 Utils.hideLoading();
                 Utils.showToast('Scanner Ready', 'info');
-                // Mock scanner start for demo
-                document.getElementById('qrVideo').style.background = 'linear-gradient(45deg, #000, #1e1e1e)';
+                document.getElementById('qrVideo').style.filter = 'grayscale(0) contrast(1.2)';
             }, 1000);
         }
 
         function stopScanner() {
+            const status = document.getElementById('qrStatus');
+            status.textContent = 'OPTICAL STANDBY';
+            status.style.color = 'var(--accent-primary)';
+            document.getElementById('qrVideo').style.filter = 'grayscale(0.5) contrast(1.2)';
             Utils.showToast('Scanner Deactivated', 'warning');
         }
 
@@ -423,12 +486,42 @@
             }, 1500);
         }
 
+        let enrollStream = null;
+        async function startEnrollment() {
+            const video = document.getElementById('enrollVideo');
+            const status = document.getElementById('enrollStatus');
+            const captureBtn = document.getElementById('captureBtn');
+            
+            try {
+                enrollStream = await faceVerification.startCamera(video);
+                status.textContent = 'ANALYZING...';
+                captureBtn.disabled = false;
+                
+                faceVerification.startMonitoring((data) => {
+                    if (data.detected) {
+                        status.textContent = 'READY';
+                        status.style.color = 'var(--success)';
+                    } else {
+                        status.textContent = 'NO FACE';
+                        status.style.color = 'var(--danger)';
+                    }
+                });
+            } catch (err) {
+                Utils.showToast('Camera error: ' + err.message, 'error');
+            }
+        }
+
         function captureEnrollment() {
             Utils.showLoading('Analyzing Baseline Signature...');
+            const status = document.getElementById('enrollStatus');
+            status.textContent = 'CAPTURING...';
+
             setTimeout(() => {
                 Utils.hideLoading();
                 Utils.showToast('Biometric Baseline Secured', 'success');
-                showSection('overview');
+                status.textContent = 'SAVED';
+                if (enrollStream) faceVerification.stopCamera(enrollStream);
+                setTimeout(() => showSection('overview'), 1000);
             }, 2000);
         }
 
