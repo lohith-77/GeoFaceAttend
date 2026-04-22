@@ -186,17 +186,6 @@ class LocationService {
 
     // Verify if user is within any office
     async verifyLocation() {
-        // DEMO MODE OVERRIDE
-        if (localStorage.getItem('GFA_DEMO_MODE') === 'true') {
-            console.log('🌍 DEMO MODE: Simulating location verification at Main Office');
-            return {
-                success: true,
-                message: 'Verified at Main Office (DEMO)',
-                location: { lat: 22.859, lng: 75.954 },
-                verification: { office: 'Main Office', officeId: 'main', distance: 12, withinRadius: true, withinWorkingHours: true }
-            };
-        }
-
         try {
             // Get current location
             const userLocation = await this.getCurrentLocation();

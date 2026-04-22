@@ -46,10 +46,9 @@
                 </div>
             </div>
             
-            <div style="padding: 20px 32px; display: flex; gap: 16px; flex-wrap: wrap;">
+            <div style="padding: 20px 32px; display: flex; gap: 16px;">
                 <button class="fab-btn-sm" onclick="Utils.toggleDarkMode()" title="Toggle Theme"><i class="fas fa-moon"></i></button>
                 <a href="../index.html" class="fab-btn-sm" title="Back to Portal" style="text-decoration: none; color: white; display: flex; align-items: center; justify-content: center;"><i class="fas fa-arrow-left"></i></a>
-                <div id="demoBadge" style="display: none; width: 100%; padding: 4px 12px; background: var(--accent-vibrant); color: white; font-size: 0.6rem; font-weight: 800; border-radius: 20px; text-align: center; letter-spacing: 1px; margin-top: 10px;">DEMO MODE ACTIVE</div>
             </div>
         </aside>
 
@@ -454,26 +453,9 @@
             Utils.showToast('Add Operator Terminal Activated', 'info');
         }
 
-        // Demo Mode Shortcut
-        window.addEventListener('keydown', (e) => {
-            if (e.ctrlKey && e.shiftKey && e.key === 'D') {
-                const current = localStorage.getItem('GFA_DEMO_MODE') === 'true';
-                const next = !current;
-                localStorage.setItem('GFA_DEMO_MODE', next);
-                updateDemoUI(next);
-                Utils.showToast(`Demo Mode ${next ? 'Enabled' : 'Disabled'}`, next ? 'info' : 'warning');
-            }
-        });
-
-        function updateDemoUI(active) {
-            const badge = document.getElementById('demoBadge');
-            if (badge) badge.style.display = active ? 'block' : 'none';
-        }
-
         document.addEventListener('DOMContentLoaded', () => {
             initMap();
             initCharts();
-            updateDemoUI(localStorage.getItem('GFA_DEMO_MODE') === 'true');
         });
     </script>
 </body>
