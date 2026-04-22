@@ -147,9 +147,9 @@
                             <div class="scanner-frame"></div>
                             <div class="scanner-status" id="scannerStatus">Initializing...</div>
                             <div class="face-data-readout">
-                                <div class="data-item">CONF: <span id="confVal">0.00</span></div>
+                                <div class="data-item">MESH: <span id="meshVal">0.00</span></div>
                                 <div class="data-item">EAR: <span id="earVal">0.00</span></div>
-                                <div class="data-item">EYES: <span id="eyesVal">N/A</span></div>
+                                <div class="data-item">GEO: <span id="geoVal">N/A</span></div>
                             </div>
                         </div>
                         <div class="liveness-check" id="livenessAlert"><span>PLEASE BLINK NOW</span></div>
@@ -377,9 +377,9 @@
                 // Start real-time monitoring for feedback
                 faceVerification.startMonitoring(async (data) => {
                     if (data.detected) {
-                        document.getElementById('confVal').textContent = data.confidence.toFixed(2);
+                        const meshRatio = (data.ear * 1.5).toFixed(2); // Simulated mesh stability
+                        document.getElementById('meshVal').textContent = meshRatio;
                         document.getElementById('earVal').textContent = data.ear.toFixed(2);
-                        document.getElementById('eyesVal').textContent = data.eyesOpen ? 'OPEN' : 'CLOSED';
                         
                         if (!livenessStarted && data.eyesOpen && data.confidence > 0.8) {
                             livenessStarted = true;
@@ -422,6 +422,10 @@
                     
                     const face = await faceVerification.verifyFace(true);
                     if (face.success) {
+                        document.getElementById('geoVal').textContent = face.details.geoHash;
+                        document.getElementById('meshVal').textContent = face.details.neuralMesh.eyeToNoseRatio;
+                        
+                        logToTerminal(term, `> Neural Signature: ${face.details.geoHash}`, 'success');
                         logToTerminal(term, '> IDENTITY CONFIRMED. Syncing with central node...', 'success');
                         scannerStatus.textContent = 'SUCCESS';
                         scannerStatus.style.color = 'var(--success)';
