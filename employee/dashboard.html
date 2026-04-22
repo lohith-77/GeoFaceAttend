@@ -576,18 +576,30 @@
             }
         }
 
-        function captureEnrollment() {
+        async function captureEnrollment() {
             Utils.showLoading('Analyzing Baseline Signature...');
             const status = document.getElementById('enrollStatus');
             status.textContent = 'CAPTURING...';
 
-            setTimeout(() => {
+            try {
+                const result = await faceVerification.captureBaseline();
                 Utils.hideLoading();
-                Utils.showToast('Biometric Baseline Secured', 'success');
-                status.textContent = 'SAVED';
-                if (enrollStream) faceVerification.stopCamera(enrollStream);
-                setTimeout(() => showSection('overview'), 1000);
-            }, 2000);
+
+                if (result.success) {
+                    Utils.showToast('Biometric Baseline Secured', 'success');
+                    status.textContent = 'SAVED';
+                    status.style.color = 'var(--success)';
+                    if (enrollStream) faceVerification.stopCamera(enrollStream);
+                    setTimeout(() => showSection('overview'), 1500);
+                } else {
+                    Utils.showToast('Capture Failed: ' + result.message, 'error');
+                    status.textContent = 'RETRY';
+                    status.style.color = 'var(--danger)';
+                }
+            } catch (err) {
+                Utils.hideLoading();
+                Utils.showToast('System Error during capture', 'error');
+            }
         }
 
         function toggleNotifications() {

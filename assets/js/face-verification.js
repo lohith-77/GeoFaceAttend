@@ -12,7 +12,8 @@ class FaceVerification {
         this.lastDetection = null;
         this.onUpdateCallback = null;
         this.neuralSignature = null;
-        this.demoMode = localStorage.getItem('GFA_DEMO_MODE') === 'true'; // Persistent Demo Mode
+        this.demoMode = localStorage.getItem('GFA_DEMO_MODE') === 'true';
+        this.baselineDescriptor = JSON.parse(localStorage.getItem('GFA_BIOMETRIC_BASELINE'));
     }
 
     /**
@@ -159,19 +160,35 @@ class FaceVerification {
         }
 
         try {
-            // Detect face with landmarks
+            // Detect face with landmarks and descriptor
             const detection = await faceapi
                 .detectSingleFace(this.video, new faceapi.TinyFaceDetectorOptions({
                     inputSize: 416,
                     scoreThreshold: 0.5
                 }))
-                .withFaceLandmarks();
+                .withFaceLandmarks()
+                .withFaceDescriptor();
 
             if (!detection) {
                 return {
                     success: false,
                     message: 'No face detected. Please look at the camera.'
                 };
+            }
+
+            // Real Identity Matching (True Verification)
+            if (this.baselineDescriptor) {
+                const distance = faceapi.euclideanDistance(detection.descriptor, new Float32Array(this.baselineDescriptor));
+                const matchThreshold = 0.55; 
+                
+                if (distance > matchThreshold) {
+                    return { 
+                        success: false, 
+                        message: 'Biometric Mismatch: Identity Not Recognized',
+                        details: { distance: distance.toFixed(3) }
+                    };
+                }
+                console.log(`✅ Biometric Match! Distance: ${distance.toFixed(3)}`);
             }
 
             // Check confidence
@@ -427,6 +444,28 @@ class FaceVerification {
             stream.getTracks().forEach(track => track.stop());
         }
         this.video = null;
+    }
+
+    /**
+     * Capture and store biometric baseline
+     */
+    async captureBaseline() {
+        if (!this.video) return { success: false, message: 'Camera not active' };
+        
+        try {
+            const detection = await faceapi.detectSingleFace(this.video, new faceapi.TinyFaceDetectorOptions({ inputSize: 320 }))
+                .withFaceLandmarks()
+                .withFaceDescriptor();
+
+            if (!detection) return { success: false, message: 'Face not centered' };
+
+            this.baselineDescriptor = Array.from(detection.descriptor);
+            localStorage.setItem('GFA_BIOMETRIC_BASELINE', JSON.stringify(this.baselineDescriptor));
+            
+            return { success: true, message: 'Baseline Secured' };
+        } catch (error) {
+            return { success: false, message: error.message };
+        }
     }
 
     /**
