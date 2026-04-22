@@ -137,23 +137,9 @@
                             <div style="font-weight: 600;">Main Office</div>
                             <div style="font-size: 0.8rem; color: var(--text-muted);">123 Business Avenue, Downtown</div>
                         </div>
-                        <button class="neon-btn" style="margin-left: auto;" onclick="runBiometricSequence(event)">Verify Location</button>
+                        <button class="neon-btn" style="margin-left: auto;" onclick="runBiometricSequence(event)">Start Verification</button>
                     </div>
 
-                    <div class="biometric-portal" id="facePortal" style="display: none;">
-                        <video id="attendanceVideo" autoplay playsinline></video>
-                        <div class="scanner-overlay">
-                            <div class="scan-line"></div>
-                            <div class="scanner-frame"></div>
-                            <div class="scanner-status" id="scannerStatus">Initializing...</div>
-                            <div class="face-data-readout">
-                                <div class="data-item">MESH: <span id="meshVal">0.00</span></div>
-                                <div class="data-item">EAR: <span id="earVal">0.00</span></div>
-                                <div class="data-item">GEO: <span id="geoVal">N/A</span></div>
-                            </div>
-                        </div>
-                        <div class="liveness-check" id="livenessAlert"><span>PLEASE BLINK NOW</span></div>
-                    </div>
                     <div class="terminal-box" id="verificationTerminal"></div>
                 </div>
             </section>
@@ -266,6 +252,29 @@
         <i class="fas fa-microchip-ai"></i> Nodal Synchronization Active | Verified Identity GFA v3.2
     </div>
 
+    <!-- Reusable Biometric Modal -->
+    <div id="biometricModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 5000; align-items: center; justify-content: center; backdrop-filter: blur(10px);">
+        <div class="card glass" style="width: 100%; max-width: 550px; text-align: center; border: 1px solid var(--accent-primary);">
+            <div class="card-title" id="bioModalTitle" style="justify-content: center;">Identity Authentication</div>
+            <div class="biometric-portal" id="facePortal" style="display: block; margin-bottom: 24px;">
+                <video id="attendanceVideo" autoplay playsinline></video>
+                <div class="scanner-overlay">
+                    <div class="scan-line"></div>
+                    <div class="scanner-frame"></div>
+                    <div class="scanner-status" id="scannerStatus">Initializing...</div>
+                    <div class="face-data-readout">
+                        <div class="data-item">MESH: <span id="meshVal">0.00</span></div>
+                        <div class="data-item">EAR: <span id="earVal">0.00</span></div>
+                        <div class="data-item">GEO: <span id="geoVal">N/A</span></div>
+                    </div>
+                </div>
+                <div class="liveness-check" id="livenessAlert"><span>PLEASE BLINK NOW</span></div>
+            </div>
+            <div class="terminal-box" id="modalTerminal" style="height: 80px; font-size: 0.8rem; padding: 12px; margin-bottom: 0;"></div>
+            <button class="neon-btn" style="margin-top: 20px; background: var(--surface-2);" onclick="cancelBiometric()">Cancel Protocol</button>
+        </div>
+    </div>
+
     <!-- Profile Edit Modal -->
     <div id="profileModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; align-items: center; justify-content: center;">
         <div class="card glass" style="width: 400px; padding: 40px;">
@@ -348,122 +357,120 @@
             }
         }
 
-        async function runBiometricSequence(event) {
-            const term = 'verificationTerminal';
-            const btn = event ? event.target : document.querySelector('#attendance-section .neon-btn');
-            if (btn) btn.disabled = true;
+        let activeBioResolve = null;
 
-            const video = document.getElementById('attendanceVideo');
-            const portal = document.getElementById('facePortal');
-            const scannerStatus = document.getElementById('scannerStatus');
-            
-            // OPTIMIZATION: Start camera early while location is verifying
-            logToTerminal(term, '> Warming up hardware & location sync...', 'info');
-            portal.style.display = 'block';
-            const cameraPromise = faceVerification.startCamera(video);
+        async function runBiometricSequence(event, checkLocation = true) {
+            return new Promise(async (resolve) => {
+                activeBioResolve = resolve;
+                const modal = document.getElementById('biometricModal');
+                const term = modal.style.display === 'flex' ? 'modalTerminal' : 'verificationTerminal';
+                const btn = event ? event.target : null;
+                if (btn) btn.disabled = true;
 
-            logToTerminal(term, '> Initiating location check...', 'info');
-            const [loc, stream] = await Promise.all([
-                locationService.verifyLocation(),
-                cameraPromise
-            ]);
-            
-            if (!loc.success) {
-                logToTerminal(term, `> Geofence mismatch: ${loc.message}`, 'error');
-                if (btn) btn.disabled = false;
-                faceVerification.stopCamera(stream);
-                portal.style.display = 'none';
-                return;
-            }
+                const video = document.getElementById('attendanceVideo');
+                const scannerStatus = document.getElementById('scannerStatus');
 
-            logToTerminal(term, '> Geofence verified. Analyzing neural mesh...', 'success');
-            scannerStatus.textContent = 'Analyzing...';
-            
-            try {
-                let livenessStarted = false;
-
-                // Start real-time monitoring for feedback
-                faceVerification.startMonitoring(async (data) => {
-                    if (data.detected) {
-                        const meshRatio = (data.ear * 1.5).toFixed(2);
-                        document.getElementById('meshVal').textContent = meshRatio;
-                        document.getElementById('earVal').textContent = data.ear.toFixed(2);
-                        
-                        if (!livenessStarted && data.eyesOpen && data.confidence > 0.75) {
-                            livenessStarted = true;
-                            scannerStatus.textContent = 'READY';
-                            
-                            // AUTO-TRIGGER LIVENESS (Reduced delay)
-                            setTimeout(() => triggerLivenessFlow(stream, term, data), 200);
-                        } else if (!livenessStarted) {
-                            scannerStatus.textContent = data.eyesOpen ? 'READY' : 'EYES CLOSED';
-                        }
-                    } else {
-                        scannerStatus.textContent = 'WAITING FOR NODE';
+                if (checkLocation) {
+                    logToTerminal(term, '> Initiating location check...', 'info');
+                    const loc = await locationService.verifyLocation();
+                    if (!loc.success) {
+                        logToTerminal(term, `> Geofence mismatch: ${loc.message}`, 'error');
+                        if (btn) btn.disabled = false;
+                        resolve(false);
+                        return;
                     }
-                });
+                    logToTerminal(term, '> Geofence verified.', 'success');
+                }
 
-            } catch (err) {
-                logToTerminal(term, `> Hardware error: ${err.message}`, 'error');
-                if (btn) btn.disabled = false;
-            }
+                logToTerminal(term, '> Analyzing neural mesh...', 'info');
+                modal.style.display = 'flex';
+                
+                try {
+                    const stream = await faceVerification.startCamera(video);
+                    scannerStatus.textContent = 'Analyzing...';
+                    let livenessStarted = false;
+
+                    faceVerification.startMonitoring(async (data) => {
+                        if (data.detected) {
+                            const meshRatio = (data.ear * 1.5).toFixed(2);
+                            document.getElementById('meshVal').textContent = meshRatio;
+                            document.getElementById('earVal').textContent = data.ear.toFixed(2);
+                            
+                            if (!livenessStarted && data.eyesOpen && data.confidence > 0.75) {
+                                livenessStarted = true;
+                                scannerStatus.textContent = 'READY';
+                                setTimeout(() => {
+                                    triggerLivenessFlow(stream, term, data).then(success => {
+                                        modal.style.display = 'none';
+                                        if (btn) btn.disabled = false;
+                                        resolve(success);
+                                    });
+                                }, 200);
+                            } else if (!livenessStarted) {
+                                scannerStatus.textContent = data.eyesOpen ? 'READY' : 'EYES CLOSED';
+                            }
+                        } else {
+                            scannerStatus.textContent = 'WAITING FOR NODE';
+                        }
+                    });
+
+                } catch (err) {
+                    logToTerminal(term, `> Hardware error: ${err.message}`, 'error');
+                    if (btn) btn.disabled = false;
+                    resolve(false);
+                }
+            });
         }
 
         async function triggerLivenessFlow(stream, term, initialData) {
-            const portal = document.getElementById('facePortal');
-            const scannerStatus = document.getElementById('scannerStatus');
-            const btn = document.querySelector('#attendance-section .neon-btn');
+            return new Promise(async (resolve) => {
+                const scannerStatus = document.getElementById('scannerStatus');
+                document.getElementById('livenessAlert').style.display = 'flex';
+                scannerStatus.textContent = 'BLINK NOW';
+                logToTerminal(term, '> Awaiting liveness confirmation...', 'wait');
+                
+                try {
+                    const liveness = await faceVerification.verifyLiveness(5000);
+                    document.getElementById('livenessAlert').style.display = 'none';
 
-            document.getElementById('livenessAlert').style.display = 'flex';
-            scannerStatus.textContent = 'BLINK NOW';
-            logToTerminal(term, '> Awaiting liveness confirmation...', 'wait');
-            
-            try {
-                // OPTIMIZATION: Reduce timeout for faster response
-                const liveness = await faceVerification.verifyLiveness(5000);
-                document.getElementById('livenessAlert').style.display = 'none';
-
-                if (liveness.success) {
-                    logToTerminal(term, '> Liveness confirmed. Finalizing...', 'success');
-                    scannerStatus.textContent = 'SYNCING...';
-                    
-                    // OPTIMIZATION: Since liveness passed, we already have a valid face. 
-                    // No need for another slow verifyFace() call if we already verified proportions.
-                    const finalFace = await faceVerification.verifyFace(true); 
-                    
-                    if (finalFace.success) {
-                        document.getElementById('geoVal').textContent = finalFace.details.geoHash;
-                        document.getElementById('meshVal').textContent = finalFace.details.neuralMesh.eyeToNoseRatio;
+                    if (liveness.success) {
+                        logToTerminal(term, '> Liveness confirmed.', 'success');
+                        scannerStatus.textContent = 'SYNCING...';
                         
-                        logToTerminal(term, `> Signature: ${finalFace.details.geoHash}`, 'success');
-                        attendanceState = (attendanceState === 'IN') ? 'OUT' : 'IN';
-                        localStorage.setItem('attendanceState', attendanceState);
-                        
-                        setTimeout(() => {
-                            updateAttendanceUI();
-                            showSection('overview');
-                            if (btn) btn.disabled = false;
+                        const finalFace = await faceVerification.verifyFace(true); 
+                        if (finalFace.success) {
+                            document.getElementById('geoVal').textContent = finalFace.details.geoHash;
+                            document.getElementById('meshVal').textContent = finalFace.details.neuralMesh.eyeToNoseRatio;
+                            logToTerminal(term, `> Signature: ${finalFace.details.geoHash}`, 'success');
+                            
+                            // If this was an attendance check (on the portal itself), finalize attendance
+                            if (term === 'verificationTerminal' || document.getElementById('bioModalTitle').textContent.includes('Identity')) {
+                                attendanceState = (attendanceState === 'IN') ? 'OUT' : 'IN';
+                                localStorage.setItem('attendanceState', attendanceState);
+                                updateAttendanceUI();
+                                showSection('overview');
+                            }
+                            
+                            setTimeout(() => {
+                                faceVerification.stopCamera(stream);
+                                resolve(true);
+                            }, 1000);
+                        } else {
+                            logToTerminal(term, `> Sync failed: ${finalFace.message}`, 'error');
                             faceVerification.stopCamera(stream);
-                            portal.style.display = 'none';
-                        }, 1000);
+                            resolve(false);
+                        }
                     } else {
-                        logToTerminal(term, `> Sync failed: ${finalFace.message}`, 'error');
-                        scannerStatus.textContent = 'RETRY';
-                        if (btn) btn.disabled = false;
+                        logToTerminal(term, `> Liveness failed: ${liveness.message}`, 'error');
                         faceVerification.stopCamera(stream);
+                        resolve(false);
                     }
-                } else {
-                    logToTerminal(term, `> Liveness failed: ${liveness.message}`, 'error');
-                    scannerStatus.textContent = 'TIMEOUT';
-                    if (btn) btn.disabled = false;
+                } catch (err) {
+                    logToTerminal(term, `> Error: ${err.message}`, 'error');
                     faceVerification.stopCamera(stream);
-                    setTimeout(() => portal.style.display = 'none', 2000);
+                    resolve(false);
                 }
-            } catch (err) {
-                logToTerminal(term, `> Error: ${err.message}`, 'error');
-                if (btn) btn.disabled = false;
-                faceVerification.stopCamera(stream);
-            }
+            });
         }
 
         function logToTerminal(id, message, type) {
@@ -513,13 +520,34 @@
 
         function handleLeaveSubmission(e) {
             e.preventDefault();
-            Utils.showLoading('Transmitting Protocol Request...');
-            setTimeout(() => {
-                Utils.hideLoading();
-                Utils.showToast('Mission Leave Protocol Requested', 'success');
-                e.target.reset();
-                showSection('overview');
-            }, 1500);
+            const form = e.target;
+            
+            // Trigger Biometric Verification for Leave
+            document.getElementById('bioModalTitle').textContent = 'Leave Protocol Authorization';
+            
+            runBiometricSequence(null, false).then(success => {
+                if (success) {
+                    Utils.showLoading('Transmitting Protocol Request...');
+                    setTimeout(() => {
+                        Utils.hideLoading();
+                        Utils.showToast('Mission Leave Protocol Requested', 'success');
+                        form.reset();
+                        showSection('overview');
+                    }, 1500);
+                } else {
+                    Utils.showToast('Authorization Failed. Leave not submitted.', 'error');
+                }
+            });
+        }
+
+        function cancelBiometric() {
+            document.getElementById('biometricModal').style.display = 'none';
+            if (activeBioResolve) activeBioResolve(false);
+            faceVerification.stopMonitoring();
+            const video = document.getElementById('attendanceVideo');
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(t => t.stop());
+            }
         }
 
         let enrollStream = null;
