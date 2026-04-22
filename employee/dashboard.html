@@ -325,6 +325,11 @@
             if (navItem) navItem.classList.add('active');
             
             if (id === 'overview' && map) setTimeout(() => map.invalidateSize(), 100);
+
+            // AUTO-START Attendance Sequence
+            if (id === 'attendance') {
+                setTimeout(() => runBiometricSequence(), 500);
+            }
         }
 
         function updateAttendanceUI() {
@@ -346,14 +351,14 @@
         async function runBiometricSequence(event) {
             const term = 'verificationTerminal';
             const btn = event ? event.target : document.querySelector('#attendance-section .neon-btn');
-            btn.disabled = true;
+            if (btn) btn.disabled = true;
 
             logToTerminal(term, '> Initiating location check...', 'info');
             const loc = await locationService.verifyLocation();
             
             if (!loc.success) {
                 logToTerminal(term, `> Geofence mismatch: ${loc.message}`, 'error');
-                btn.disabled = false;
+                if (btn) btn.disabled = false;
                 return;
             }
 
@@ -366,67 +371,88 @@
             try {
                 const stream = await faceVerification.startCamera(video);
                 scannerStatus.textContent = 'Analyzing...';
+                
+                let livenessStarted = false;
 
                 // Start real-time monitoring for feedback
-                faceVerification.startMonitoring((data) => {
+                faceVerification.startMonitoring(async (data) => {
                     if (data.detected) {
                         document.getElementById('confVal').textContent = data.confidence.toFixed(2);
                         document.getElementById('earVal').textContent = data.ear.toFixed(2);
                         document.getElementById('eyesVal').textContent = data.eyesOpen ? 'OPEN' : 'CLOSED';
-                        scannerStatus.textContent = data.eyesOpen ? 'READY' : 'EYES CLOSED';
-                        scannerStatus.style.color = data.eyesOpen ? 'var(--success)' : 'var(--warning)';
+                        
+                        if (!livenessStarted && data.eyesOpen && data.confidence > 0.8) {
+                            livenessStarted = true;
+                            scannerStatus.textContent = 'READY - STARTING LIVENESS';
+                            
+                            // AUTO-TRIGGER LIVENESS
+                            setTimeout(() => triggerLivenessFlow(stream, term), 1000);
+                        } else if (!livenessStarted) {
+                            scannerStatus.textContent = data.eyesOpen ? 'READY' : 'EYES CLOSED';
+                            scannerStatus.style.color = data.eyesOpen ? 'var(--success)' : 'var(--warning)';
+                        }
                     } else {
                         scannerStatus.textContent = 'NO FACE DETECTED';
                         scannerStatus.style.color = 'var(--danger)';
                     }
                 });
 
-                // Simulated Leading Feature: Liveness
-                setTimeout(async () => {
-                    document.getElementById('livenessAlert').style.display = 'flex';
-                    scannerStatus.textContent = 'LIVENESS CHECK';
-                    logToTerminal(term, '> Awaiting liveness confirmation (Blink)...', 'wait');
-                    
-                    const liveness = await faceVerification.verifyLiveness();
-                    document.getElementById('livenessAlert').style.display = 'none';
-
-                    if (liveness.success) {
-                        logToTerminal(term, '> Liveness confirmed. Verifying identity...', 'success');
-                        scannerStatus.textContent = 'VERIFYING...';
-                        
-                        const face = await faceVerification.verifyFace(true);
-                        if (face.success) {
-                            logToTerminal(term, '> IDENTITY CONFIRMED. Syncing with central node...', 'success');
-                            scannerStatus.textContent = 'SUCCESS';
-                            scannerStatus.style.color = 'var(--success)';
-                            
-                            attendanceState = (attendanceState === 'IN') ? 'OUT' : 'IN';
-                            localStorage.setItem('attendanceState', attendanceState);
-                            
-                            setTimeout(() => {
-                                updateAttendanceUI();
-                                showSection('overview');
-                                btn.disabled = false;
-                                faceVerification.stopCamera(stream);
-                                portal.style.display = 'none';
-                                logToTerminal(term, `> Protocol complete: ${attendanceState} recorded.`, 'info');
-                            }, 2000);
-                        } else {
-                            logToTerminal(term, `> Verification failed: ${face.message}`, 'error');
-                            scannerStatus.textContent = 'FAILED';
-                            btn.disabled = false;
-                            faceVerification.stopCamera(stream);
-                        }
-                    } else {
-                        logToTerminal(term, `> Liveness failed: ${liveness.message}`, 'error');
-                        scannerStatus.textContent = 'TIMEOUT';
-                        btn.disabled = false;
-                        faceVerification.stopCamera(stream);
-                    }
-                }, 3000);
             } catch (err) {
                 logToTerminal(term, `> Hardware error: ${err.message}`, 'error');
-                btn.disabled = false;
+                if (btn) btn.disabled = false;
+            }
+        }
+
+        async function triggerLivenessFlow(stream, term) {
+            const portal = document.getElementById('facePortal');
+            const scannerStatus = document.getElementById('scannerStatus');
+            const btn = document.querySelector('#attendance-section .neon-btn');
+
+            document.getElementById('livenessAlert').style.display = 'flex';
+            scannerStatus.textContent = 'LIVENESS CHECK';
+            logToTerminal(term, '> Awaiting liveness confirmation (Blink)...', 'wait');
+            
+            try {
+                const liveness = await faceVerification.verifyLiveness();
+                document.getElementById('livenessAlert').style.display = 'none';
+
+                if (liveness.success) {
+                    logToTerminal(term, '> Liveness confirmed. Verifying identity...', 'success');
+                    scannerStatus.textContent = 'VERIFYING...';
+                    
+                    const face = await faceVerification.verifyFace(true);
+                    if (face.success) {
+                        logToTerminal(term, '> IDENTITY CONFIRMED. Syncing with central node...', 'success');
+                        scannerStatus.textContent = 'SUCCESS';
+                        scannerStatus.style.color = 'var(--success)';
+                        
+                        attendanceState = (attendanceState === 'IN') ? 'OUT' : 'IN';
+                        localStorage.setItem('attendanceState', attendanceState);
+                        
+                        setTimeout(() => {
+                            updateAttendanceUI();
+                            showSection('overview');
+                            if (btn) btn.disabled = false;
+                            faceVerification.stopCamera(stream);
+                            portal.style.display = 'none';
+                            logToTerminal(term, `> Protocol complete: ${attendanceState} recorded.`, 'info');
+                        }, 2000);
+                    } else {
+                        logToTerminal(term, `> Verification failed: ${face.message}`, 'error');
+                        scannerStatus.textContent = 'FAILED';
+                        if (btn) btn.disabled = false;
+                        faceVerification.stopCamera(stream);
+                    }
+                } else {
+                    logToTerminal(term, `> Liveness failed: ${liveness.message}`, 'error');
+                    scannerStatus.textContent = 'TIMEOUT';
+                    if (btn) btn.disabled = false;
+                    faceVerification.stopCamera(stream);
+                }
+            } catch (err) {
+                logToTerminal(term, `> Verification Error: ${err.message}`, 'error');
+                if (btn) btn.disabled = false;
+                faceVerification.stopCamera(stream);
             }
         }
 
