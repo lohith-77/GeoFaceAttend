@@ -11,7 +11,8 @@ class FaceVerification {
         this.eyeOpenThreshold = 0.25; 
         this.lastDetection = null;
         this.onUpdateCallback = null;
-        this.neuralSignature = null; // Store baseline proportions
+        this.neuralSignature = null;
+        this.demoMode = localStorage.getItem('GFA_DEMO_MODE') === 'true'; // Persistent Demo Mode
     }
 
     /**
@@ -129,6 +130,26 @@ class FaceVerification {
      * Verify face with eye detection
      */
     async verifyFace(requireEyesOpen = true, minConfidence = 0.5) {
+        if (this.demoMode) {
+            console.log('🚀 DEMO MODE ACTIVE: Simulating successful face verification');
+            return new Promise(resolve => {
+                setTimeout(() => {
+                    resolve({
+                        success: true,
+                        message: 'Neural Identity Confirmed (DEMO)',
+                        details: {
+                            ear: 0.35,
+                            eyesOpen: true,
+                            confidence: 0.99,
+                            neuralMesh: { eyeToNoseRatio: "1.424", mouthToEyeRatio: "0.982", jawSymmetry: "1.123", meshVerified: true },
+                            timestamp: new Date().toISOString(),
+                            geoHash: this.generateGeoHash()
+                        }
+                    });
+                }, 1500);
+            });
+        }
+
         if (!this.modelsLoaded) {
             await this.loadModels();
         }
@@ -283,6 +304,15 @@ class FaceVerification {
      * Start liveness check (Wait for blink)
      */
     async verifyLiveness(timeout = 10000) {
+        if (this.demoMode) {
+            console.log('🚀 DEMO MODE ACTIVE: Simulating liveness detection');
+            return new Promise(resolve => {
+                setTimeout(() => {
+                    resolve({ success: true, message: 'Liveness confirmed via blink (DEMO).' });
+                }, 2000);
+            });
+        }
+
         return new Promise((resolve, reject) => {
             let hasOpened = false;
             let hasClosed = false;
@@ -397,6 +427,16 @@ class FaceVerification {
             stream.getTracks().forEach(track => track.stop());
         }
         this.video = null;
+    }
+
+    /**
+     * Toggle Demo Mode
+     */
+    toggleDemoMode() {
+        this.demoMode = !this.demoMode;
+        localStorage.setItem('GFA_DEMO_MODE', this.demoMode);
+        console.log(`🚀 Demo Mode ${this.demoMode ? 'ENABLED' : 'DISABLED'}`);
+        return this.demoMode;
     }
 
     /**

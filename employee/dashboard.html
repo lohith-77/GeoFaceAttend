@@ -62,9 +62,10 @@
                 </div>
             </div>
 
-            <div style="padding: 20px 32px; display: flex; gap: 16px;">
+            <div style="padding: 20px 32px; display: flex; gap: 16px; flex-wrap: wrap;">
                 <button class="fab-btn-sm" onclick="Utils.toggleDarkMode()" title="Toggle Theme" style="width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--glass-border); background: var(--surface-1); color: var(--text-core); cursor: pointer;"><i class="fas fa-moon"></i></button>
                 <a href="../index.html" class="fab-btn-sm" title="Back to Portal" style="text-decoration: none; width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--glass-border); background: var(--surface-1); color: var(--text-core); display: flex; align-items: center; justify-content: center;"><i class="fas fa-arrow-left"></i></a>
+                <div id="demoBadge" style="display: none; width: 100%; padding: 4px 12px; background: var(--accent-vibrant); color: white; font-size: 0.6rem; font-weight: 800; border-radius: 20px; text-align: center; letter-spacing: 1px;">DEMO MODE ACTIVE</div>
             </div>
         </aside>
 
@@ -594,10 +595,24 @@
             p.style.display = p.style.display === 'block' ? 'none' : 'block';
         }
 
+        // Demo Mode Shortcut
+        window.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+                const active = faceVerification.toggleDemoMode();
+                updateDemoUI(active);
+                Utils.showToast(`Demo Mode ${active ? 'Enabled' : 'Disabled'}`, active ? 'info' : 'warning');
+            }
+        });
+
+        function updateDemoUI(active) {
+            document.getElementById('demoBadge').style.display = active ? 'block' : 'none';
+        }
+
         // Initial calls
         updateAttendanceUI();
         initMap();
         initParticles();
+        updateDemoUI(faceVerification.demoMode);
         setInterval(() => {
             document.getElementById('currentDateTime').textContent = new Date().toLocaleTimeString();
         }, 1000);
